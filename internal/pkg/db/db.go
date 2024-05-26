@@ -9,25 +9,17 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
-// What type of SQL database is connected
-type DBFlavor string
-
-const (
-	MySQL      DBFlavor = "mysql"
-	PostgreSQL DBFlavor = "pgx"
-)
-
 type DB struct {
 	ctx         context.Context
 	db          *sql.DB
 	conn        *sql.Conn
-	connOptions *DBConnOptions
+	dsnProducer *DSNProducer
 }
 
 func CreateDB(
-	connOptions DBConnOptions,
+	connOptions DSNProducer,
 ) (*DB, error) {
-	dataSourceName, err := connOptions.ToString()
+	dataSourceName, err := connOptions.ToDSN()
 	if err != nil {
 		return nil, errors.Join(
 			errors.New("Failed to create connection string"),
@@ -35,7 +27,7 @@ func CreateDB(
 		)
 	}
 
-	sqlDB, err := sql.Open(connOptions.Host, dataSourceName)
+	sqlDB, err := sql.Open(string(connOptions.GetFlavor()), dataSourceName)
 	if err != nil {
 		return nil, errors.Join(
 			errors.New("Failed to open database"),
@@ -65,7 +57,7 @@ func CreateDB(
 		ctx:         ctx,
 		db:          sqlDB,
 		conn:        conn,
-		connOptions: &connOptions,
+		dsnProducer: &connOptions,
 	}
 
 	return &db, nil

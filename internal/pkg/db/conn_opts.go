@@ -9,6 +9,19 @@ import (
 	"github.com/go-sql-driver/mysql"
 )
 
+// What type of SQL database is connected
+type DBFlavor string
+
+const (
+	MySQL      DBFlavor = "mysql"
+	PostgreSQL DBFlavor = "pgx"
+)
+
+type DSNProducer interface {
+	ToDSN() (string, error)
+	GetFlavor() DBFlavor
+}
+
 type DBConnOptions struct {
 	Flavor       DBFlavor
 	Host         string
@@ -78,7 +91,7 @@ func (connOptions *DBConnOptions) getNetwork() string {
 	}
 }
 
-func (connOptions *DBConnOptions) ToString() (string, error) {
+func (connOptions *DBConnOptions) ToDSN() (string, error) {
 	switch connOptions.Flavor {
 	case MySQL:
 		{

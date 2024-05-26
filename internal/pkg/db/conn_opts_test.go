@@ -128,7 +128,7 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 			assert := assert.New(t)
 			t.Parallel()
 
-			fullConnString, err := test.ConnOptions.ToString()
+			fullConnString, err := test.ConnOptions.ToDSN()
 			assert.Nil(err)
 
 			// Seperate the base connection string from query options
@@ -232,7 +232,7 @@ func TestDBConnOptionsPostgreSQL(t *testing.T) {
 			assert := assert.New(t)
 			t.Parallel()
 
-			fullConnString, err := test.ConnOptions.ToString()
+			fullConnString, err := test.ConnOptions.ToDSN()
 			assert.Nil(err)
 
 			actualConnStringParts := []string{}
@@ -258,7 +258,7 @@ func TestDBConnOptionsInvalidFlavor(t *testing.T) {
 		Password: "password",
 		Port:     1234,
 	}
-	connOptionsString, err := connOptions.ToString()
+	connOptionsString, err := connOptions.ToDSN()
 
 	assert.Empty(connOptionsString)
 	assert.Error(err)
