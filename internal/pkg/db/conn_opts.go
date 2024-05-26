@@ -1,7 +1,6 @@
-package main
+package db
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/url"
@@ -9,21 +8,6 @@ import (
 
 	"github.com/go-sql-driver/mysql"
 )
-
-// What type of SQL database is connected
-type DBFlavor string
-
-const (
-	MySQL      DBFlavor = "mysql"
-	PostgreSQL DBFlavor = "pgx"
-)
-
-type DB struct {
-	conn   *sql.DB
-	flavor DBFlavor
-	// Only works in MySQL
-	safeMode bool
-}
 
 type DBConnOptions struct {
 	Flavor       DBFlavor
@@ -150,14 +134,4 @@ func (connOptions *DBConnOptions) ToString() (string, error) {
 			return "", errors.New(fmt.Sprintf("Unknown database type %s", connOptions.Flavor))
 		}
 	}
-}
-
-func CreateDB(
-	connOptions *DBConnOptions,
-) (*DB, error) {
-	if connOptions == nil {
-		return nil, errors.New("Connection options are not defined")
-	}
-
-	return nil, nil
 }
