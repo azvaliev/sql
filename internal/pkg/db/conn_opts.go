@@ -19,6 +19,7 @@ const (
 
 type DSNProducer interface {
 	ToDSN() (string, error)
+	IsSafeMode() bool
 	GetFlavor() DBFlavor
 }
 
@@ -34,61 +35,12 @@ type DBConnOptions struct {
 	AdditionalOptions map[string]string
 }
 
-func (connOptions *DBConnOptions) additionalOptionsToQueryParts() *[]string {
-	if connOptions.AdditionalOptions == nil || len(connOptions.AdditionalOptions) == 0 {
-		return nil
-	}
-
-	queryParts := []string{}
-
-	for key, value := range connOptions.AdditionalOptions {
-		if value == "" {
-			var trueValue = "true"
-
-			switch connOptions.Flavor {
-			case MySQL:
-				{
-					trueValue = "true"
-					break
-				}
-			case PostgreSQL:
-				{
-					trueValue = "1"
-				}
-			}
-
-			queryParts = append(queryParts, fmt.Sprint(key, "=", url.QueryEscape(trueValue)))
-		} else {
-			queryParts = append(queryParts, fmt.Sprint(key, "=", url.QueryEscape(value)))
-		}
-
-	}
-
-	return &queryParts
+func (connOptions *DBConnOptions) IsSafeMode() bool {
+	return connOptions.SafeMode
 }
 
-func (connOptions *DBConnOptions) additionalOptionsToString() string {
-	queryParts := connOptions.additionalOptionsToQueryParts()
-	if queryParts == nil {
-		return ""
-	}
-
-	return "?" + strings.Join(*queryParts, "&")
-}
-
-func (connOptions *DBConnOptions) getNetwork() string {
-	if connOptions.Host == "" {
-		return ""
-	}
-
-	var firstHostChar = string(connOptions.Host[0])
-	var hostIsUnixSocket bool = firstHostChar == "@" || firstHostChar == "/"
-
-	if hostIsUnixSocket {
-		return "unix"
-	} else {
-		return "tcp"
-	}
+func (connOptions *DBConnOptions) GetFlavor() DBFlavor {
+	return connOptions.Flavor
 }
 
 func (connOptions *DBConnOptions) ToDSN() (string, error) {
@@ -146,5 +98,62 @@ func (connOptions *DBConnOptions) ToDSN() (string, error) {
 		{
 			return "", errors.New(fmt.Sprintf("Unknown database type %s", connOptions.Flavor))
 		}
+	}
+}
+
+func (connOptions *DBConnOptions) additionalOptionsToQueryParts() *[]string {
+	if connOptions.AdditionalOptions == nil || len(connOptions.AdditionalOptions) == 0 {
+		return nil
+	}
+
+	queryParts := []string{}
+
+	for key, value := range connOptions.AdditionalOptions {
+		if value == "" {
+			var trueValue = "true"
+
+			switch connOptions.Flavor {
+			case MySQL:
+				{
+					trueValue = "true"
+					break
+				}
+			case PostgreSQL:
+				{
+					trueValue = "1"
+				}
+			}
+
+			queryParts = append(queryParts, fmt.Sprint(key, "=", url.QueryEscape(trueValue)))
+		} else {
+			queryParts = append(queryParts, fmt.Sprint(key, "=", url.QueryEscape(value)))
+		}
+
+	}
+
+	return &queryParts
+}
+
+func (connOptions *DBConnOptions) additionalOptionsToString() string {
+	queryParts := connOptions.additionalOptionsToQueryParts()
+	if queryParts == nil {
+		return ""
+	}
+
+	return "?" + strings.Join(*queryParts, "&")
+}
+
+func (connOptions *DBConnOptions) getNetwork() string {
+	if connOptions.Host == "" {
+		return ""
+	}
+
+	var firstHostChar = string(connOptions.Host[0])
+	var hostIsUnixSocket bool = firstHostChar == "@" || firstHostChar == "/"
+
+	if hostIsUnixSocket {
+		return "unix"
+	} else {
+		return "tcp"
 	}
 }
