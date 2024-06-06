@@ -112,6 +112,8 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
+			test := test
+
 			assert := assert.New(t)
 			t.Parallel()
 
@@ -216,6 +218,7 @@ func TestDBConnOptionsPostgreSQL(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.Name, func(t *testing.T) {
+			test := test
 			assert := assert.New(t)
 			t.Parallel()
 

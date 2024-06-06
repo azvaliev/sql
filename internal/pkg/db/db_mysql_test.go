@@ -155,6 +155,7 @@ func TestDBMySQLDataDisplay(t *testing.T) {
 
 	dbClient, err := db.CreateDBClient(&connOptions)
 	assert.NoError(t, err)
+	defer dbClient.Destroy()
 
 	// Check display of all datatypes
 	{
@@ -459,6 +460,93 @@ func TestDBMySQLDataDisplay(t *testing.T) {
 
 			})
 		}
+	}
+}
 
+func TestDBMySQLDescribe(t *testing.T) {
+	assert := assert.New(t)
+	connOptions := db.DBConnOptions{
+		Flavor:       db.MySQL,
+		Host:         "localhost",
+		DatabaseName: "test",
+		User:         "user",
+		Password:     "password",
+		Port:         3306,
+		SafeMode:     true,
+	}
+
+	ctx := context.Background()
+	container, err := initMySQLTestDB(&connOptions, ctx)
+	assert.NoError(err)
+
+	defer createMySQLTestDBCleanup(ctx, container)
+
+	dbClient, err := db.CreateDBClient(&connOptions)
+	assert.NoError(err)
+	defer dbClient.Destroy()
+
+	// Create a table we can describe later
+	const tableName string = "test"
+	_, err = dbClient.Query(fmt.Sprintf(`
+		CREATE TABLE %s(
+			id int NOT NULL PRIMARY KEY auto_increment,
+			external_id CHAR(32),
+			UNIQUE (external_id),
+			created_at DATETIME NOT NULL DEFAULT NOW(),
+			INDEX (created_at)
+		)
+	`, tableName))
+	assert.NoError(err)
+
+	describeResult, err := dbClient.Query(fmt.Sprintf("DESCRIBE %s", tableName))
+	assert.NoError(err)
+
+	// Check if column names match order and values
+	expectedColumnNames := []string{"id", "external_id", "created_at"}
+	actualColumnNames := make([]string, len(expectedColumnNames))
+	for i, describeColumnResult := range describeResult.Rows {
+		actualColumnNames[i] = describeColumnResult["Field"]
+	}
+
+	assert.Equal(expectedColumnNames, actualColumnNames)
+
+	// Validate describe output
+	for _, row := range describeResult.Rows {
+		assert.Len(row, 6)
+
+		switch row["Field"] {
+		case "id":
+			{
+				assert.Equal("int", row["Type"])
+				assert.Equal("NO", row["Null"])
+				assert.Equal("PRI", row["Key"])
+				assert.Equal("NULL", row["Default"])
+				assert.Equal("auto_increment", row["Extra"])
+				break
+			}
+		case "external_id":
+			{
+				assert.Equal("char(32)", row["Type"])
+				assert.Equal("YES", row["Null"])
+				assert.Equal("UNI", row["Key"])
+				assert.Equal("NULL", row["Default"])
+				assert.Empty(row["Extra"])
+				break
+			}
+		case "created_at":
+			{
+				assert.Equal("datetime", row["Type"])
+				assert.Equal("NO", row["Null"])
+				assert.Equal("MUL", row["Key"])
+				assert.Equal("CURRENT_TIMESTAMP", row["Default"])
+				assert.Equal("DEFAULT_GENERATED", row["Extra"])
+				break
+			}
+		default:
+			{
+				assert.Fail(fmt.Sprint("Unexpected column", row["Field"]))
+				break
+			}
+		}
 	}
 }
