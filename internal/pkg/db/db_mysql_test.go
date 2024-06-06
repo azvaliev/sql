@@ -16,17 +16,18 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
-type TestDB struct {
-	client    *db.DBClient
-	container *mysql.MySQLContainer
+type InitTestDBOptions struct {
+	Version     string
+	ConnOptions *db.DBConnOptions
 }
 
-const MySQLVersion string = "8.0"
+// active supported + active LTS versions
+var TESTED_MYSQL_VERSIONS = [...]string{"8.0", "8.2", "8.3", "8.4"}
 
-func initMySQLTestDB(opts *db.DBConnOptions, ctx context.Context) (*mysql.MySQLContainer, error) {
+func initMySQLTestDB(opts InitTestDBOptions, ctx context.Context) (*mysql.MySQLContainer, error) {
 	containerProps := []testcontainers.ContainerCustomizer{
 		testcontainers.WithImage(
-			fmt.Sprint("mysql:", MySQLVersion),
+			fmt.Sprint("mysql:", opts.Version),
 		),
 		testcontainers.WithWaitStrategy(
 			wait.
@@ -36,15 +37,16 @@ func initMySQLTestDB(opts *db.DBConnOptions, ctx context.Context) (*mysql.MySQLC
 			wait.ForExposedPort(),
 		),
 	}
+	connOptions := opts.ConnOptions
 
-	if opts.DatabaseName != "" {
-		containerProps = append(containerProps, mysql.WithDatabase(opts.DatabaseName))
+	if connOptions.DatabaseName != "" {
+		containerProps = append(containerProps, mysql.WithDatabase(connOptions.DatabaseName))
 	}
-	if opts.User != "" {
-		containerProps = append(containerProps, mysql.WithUsername(opts.User))
+	if connOptions.User != "" {
+		containerProps = append(containerProps, mysql.WithUsername(connOptions.User))
 	}
-	if opts.Password != "" {
-		containerProps = append(containerProps, mysql.WithPassword(opts.Password))
+	if connOptions.Password != "" {
+		containerProps = append(containerProps, mysql.WithPassword(connOptions.Password))
 	}
 
 	container, err := mysql.RunContainer(ctx, containerProps...)
@@ -64,7 +66,7 @@ func initMySQLTestDB(opts *db.DBConnOptions, ctx context.Context) (*mysql.MySQLC
 		)
 	}
 
-	opts.Port = uint16(port.Int())
+	opts.ConnOptions.Port = uint16(port.Int())
 
 	return container, nil
 }
@@ -76,8 +78,6 @@ func createMySQLTestDBCleanup(ctx context.Context, container *mysql.MySQLContain
 }
 
 func TestDBMySQLConnOptions(t *testing.T) {
-	assert := assert.New(t)
-
 	connOptions := db.DBConnOptions{
 		Flavor:       db.MySQL,
 		Host:         "localhost",
@@ -88,75 +88,65 @@ func TestDBMySQLConnOptions(t *testing.T) {
 		SafeMode:     true,
 	}
 
-	ctx := context.Background()
-	container, err := initMySQLTestDB(&connOptions, ctx)
-	assert.NoError(err)
+	for _, mySQLVersion := range TESTED_MYSQL_VERSIONS {
+		t.Run(fmt.Sprintf("MySQL %s Connection", mySQLVersion), func(t *testing.T) {
+			mySQLVersion := mySQLVersion
+			assert := assert.New(t)
 
-	defer createMySQLTestDBCleanup(ctx, container)
+			ctx := context.Background()
+			container, err := initMySQLTestDB(
+				InitTestDBOptions{mySQLVersion, &connOptions},
+				ctx,
+			)
+			assert.NoError(err)
 
-	dbClient, err := db.CreateDBClient(&connOptions)
-	assert.NoError(err)
+			defer createMySQLTestDBCleanup(ctx, container)
 
-	// Using version function
-	{
-		result, err := dbClient.Query("SELECT VERSION()")
-		assert.NoError(err)
-		assert.Len(result.Rows, 1)
+			dbClient, err := db.CreateDBClient(&connOptions)
+			assert.NoError(err)
 
-		version := result.Rows[0]["VERSION()"]
+			// Using version function
+			{
+				result, err := dbClient.Query("SELECT VERSION()")
+				assert.NoError(err)
+				assert.Len(result.Rows, 1)
 
-		assert.Regexp(
-			regexp.MustCompile(
-				fmt.Sprint(MySQLVersion, `\.\d+`),
-			),
-			version,
-		)
-	}
+				version := result.Rows[0]["VERSION()"]
 
-	// Check database name setting
-	{
-		result, err := dbClient.Query("SELECT DATABASE()")
-		assert.NoError(err)
-		assert.Len(result.Rows, 1)
+				assert.Regexp(
+					regexp.MustCompile(
+						fmt.Sprint(mySQLVersion, `\.\d+`),
+					),
+					version,
+				)
+			}
 
-		actualDatabaseName := result.Rows[0]["DATABASE()"]
+			// Check database name setting
+			{
+				result, err := dbClient.Query("SELECT DATABASE()")
+				assert.NoError(err)
+				assert.Len(result.Rows, 1)
 
-		assert.Equal(connOptions.DatabaseName, actualDatabaseName)
-	}
+				actualDatabaseName := result.Rows[0]["DATABASE()"]
 
-	// Check safe updates setting
-	{
-		result, err := dbClient.Query("SELECT @@SQL_SAFE_UPDATES AS SAFE_UPDATES_ENABLED")
-		assert.NoError(err)
-		assert.Len(result.Rows, 1)
+				assert.Equal(connOptions.DatabaseName, actualDatabaseName)
+			}
 
-		actualSafeMode := result.Rows[0]["SAFE_UPDATES_ENABLED"]
+			// Check safe updates setting
+			{
+				result, err := dbClient.Query("SELECT @@SQL_SAFE_UPDATES AS SAFE_UPDATES_ENABLED")
+				assert.NoError(err)
+				assert.Len(result.Rows, 1)
 
-		assert.Equal(fmt.Sprint(1), actualSafeMode)
+				actualSafeMode := result.Rows[0]["SAFE_UPDATES_ENABLED"]
+
+				assert.Equal(fmt.Sprint(1), actualSafeMode)
+			}
+		})
 	}
 }
 
 func TestDBMySQLDataDisplay(t *testing.T) {
-	connOptions := db.DBConnOptions{
-		Flavor:       db.MySQL,
-		Host:         "localhost",
-		DatabaseName: "test",
-		User:         "user",
-		Password:     "password",
-		Port:         3306,
-		SafeMode:     true,
-	}
-
-	ctx := context.Background()
-	container, err := initMySQLTestDB(&connOptions, ctx)
-	assert.NoError(t, err)
-
-	defer createMySQLTestDBCleanup(ctx, container)
-
-	dbClient, err := db.CreateDBClient(&connOptions)
-	assert.NoError(t, err)
-	defer dbClient.Destroy()
-
 	// Check display of all datatypes
 	{
 		cases := []struct {
@@ -418,76 +408,103 @@ func TestDBMySQLDataDisplay(t *testing.T) {
 			},
 		}
 
-		for idx, tt := range cases {
-			t.Run(fmt.Sprintf("%s display", tt.Datatype), func(t *testing.T) {
-				assert := assert.New(t)
+		connOptions := db.DBConnOptions{
+			Flavor:       db.MySQL,
+			Host:         "localhost",
+			DatabaseName: "test",
+			User:         "user",
+			Password:     "password",
+			Port:         3306,
+			SafeMode:     true,
+		}
 
-				tableName := fmt.Sprintf("test_%s_%d", tt.ColumnName, idx)
-				tableCreationStatement := fmt.Sprintf(`
+		for _, mySQLVersion := range TESTED_MYSQL_VERSIONS {
+			ctx := context.Background()
+			container, err := initMySQLTestDB(InitTestDBOptions{mySQLVersion, &connOptions}, ctx)
+			assert.NoError(t, err)
+
+			defer createMySQLTestDBCleanup(ctx, container)
+
+			dbClient, err := db.CreateDBClient(&connOptions)
+			assert.NoError(t, err)
+
+			for idx, tt := range cases {
+				t.Run(fmt.Sprintf("MySQL %s - %s display", mySQLVersion, tt.Datatype), func(t *testing.T) {
+					tt := tt
+					idx := idx
+
+					assert := assert.New(t)
+
+					tableName := fmt.Sprintf("test_%s_%d", tt.ColumnName, idx)
+					tableCreationStatement := fmt.Sprintf(`
 					CREATE TABLE %s (
 						%s %s
 					);
 				`, tableName, tt.ColumnName, tt.Datatype)
-				_, err := dbClient.Query(tableCreationStatement)
+					_, err := dbClient.Query(tableCreationStatement)
 
-				testCtx := []string{tableCreationStatement}
-				assert.NoError(err, testCtx)
+					testCtx := []string{tableCreationStatement}
+					assert.NoError(err, testCtx)
 
-				dataInsertionStatement := fmt.Sprintf(`
+					dataInsertionStatement := fmt.Sprintf(`
 					INSERT INTO %s VALUES (%s);
 				`, tableName, tt.ProvidedValue)
-				_, err = dbClient.Query(dataInsertionStatement)
+					_, err = dbClient.Query(dataInsertionStatement)
 
-				testCtx = append(testCtx, dataInsertionStatement)
-				assert.NoError(err, testCtx)
+					testCtx = append(testCtx, dataInsertionStatement)
+					assert.NoError(err, testCtx)
 
-				columnSelectExpression := tt.ColumnName
-				if tt.SelectFmt != "" {
-					columnSelectExpression = fmt.Sprintf("%s as %s", fmt.Sprintf(tt.SelectFmt, columnSelectExpression), tt.ColumnName)
-				}
+					columnSelectExpression := tt.ColumnName
+					if tt.SelectFmt != "" {
+						columnSelectExpression = fmt.Sprintf("%s as %s", fmt.Sprintf(tt.SelectFmt, columnSelectExpression), tt.ColumnName)
+					}
 
-				dataSelectStatement := fmt.Sprintf("SELECT %s FROM %s", columnSelectExpression, tableName)
-				result, err := dbClient.Query(dataSelectStatement)
+					dataSelectStatement := fmt.Sprintf("SELECT %s FROM %s", columnSelectExpression, tableName)
+					result, err := dbClient.Query(dataSelectStatement)
 
-				testCtx = append(testCtx, dataSelectStatement)
-				assert.NoError(err, testCtx)
+					testCtx = append(testCtx, dataSelectStatement)
+					assert.NoError(err, testCtx)
 
-				assert.Len(result.Rows, 1, testCtx)
-				data := result.Rows[0]
+					assert.Len(result.Rows, 1, testCtx)
+					data := result.Rows[0]
 
-				assert.Len(data, 1, testCtx)
-				assert.Equal(tt.ExpectedValue, data[tt.ColumnName], testCtx)
+					assert.Len(data, 1, testCtx)
+					assert.Equal(tt.ExpectedValue, data[tt.ColumnName], testCtx)
 
-			})
+				})
+			}
 		}
 	}
 }
 
 func TestDBMySQLDescribe(t *testing.T) {
-	assert := assert.New(t)
 	connOptions := db.DBConnOptions{
 		Flavor:       db.MySQL,
 		Host:         "localhost",
 		DatabaseName: "test",
-		User:         "user",
+		User:         "buser",
 		Password:     "password",
 		Port:         3306,
 		SafeMode:     true,
 	}
 
-	ctx := context.Background()
-	container, err := initMySQLTestDB(&connOptions, ctx)
-	assert.NoError(err)
+	for _, mySQLVersion := range TESTED_MYSQL_VERSIONS {
+		t.Run(fmt.Sprintf("MySQL %s - DESCRIBE", mySQLVersion), func(t *testing.T) {
+			mySQLVersion := mySQLVersion
+			assert := assert.New(t)
 
-	defer createMySQLTestDBCleanup(ctx, container)
+			ctx := context.Background()
+			container, err := initMySQLTestDB(InitTestDBOptions{mySQLVersion, &connOptions}, ctx)
+			assert.NoError(err)
 
-	dbClient, err := db.CreateDBClient(&connOptions)
-	assert.NoError(err)
-	defer dbClient.Destroy()
+			defer createMySQLTestDBCleanup(ctx, container)
 
-	// Create a table we can describe later
-	const tableName string = "test"
-	_, err = dbClient.Query(fmt.Sprintf(`
+			dbClient, err := db.CreateDBClient(&connOptions)
+			assert.NoError(err)
+
+			// Create a table we can describe later
+			const tableName string = "test"
+			_, err = dbClient.Query(fmt.Sprintf(`
 		CREATE TABLE %s(
 			id int NOT NULL PRIMARY KEY auto_increment,
 			external_id CHAR(32),
@@ -496,57 +513,59 @@ func TestDBMySQLDescribe(t *testing.T) {
 			INDEX (created_at)
 		)
 	`, tableName))
-	assert.NoError(err)
+			assert.NoError(err)
 
-	describeResult, err := dbClient.Query(fmt.Sprintf("DESCRIBE %s", tableName))
-	assert.NoError(err)
+			describeResult, err := dbClient.Query(fmt.Sprintf("DESCRIBE %s", tableName))
+			assert.NoError(err)
 
-	// Check if column names match order and values
-	expectedColumnNames := []string{"id", "external_id", "created_at"}
-	actualColumnNames := make([]string, len(expectedColumnNames))
-	for i, describeColumnResult := range describeResult.Rows {
-		actualColumnNames[i] = describeColumnResult["Field"]
-	}
-
-	assert.Equal(expectedColumnNames, actualColumnNames)
-
-	// Validate describe output
-	for _, row := range describeResult.Rows {
-		assert.Len(row, 6)
-
-		switch row["Field"] {
-		case "id":
-			{
-				assert.Equal("int", row["Type"])
-				assert.Equal("NO", row["Null"])
-				assert.Equal("PRI", row["Key"])
-				assert.Equal("NULL", row["Default"])
-				assert.Equal("auto_increment", row["Extra"])
-				break
+			// Check if column names match order and values
+			expectedColumnNames := []string{"id", "external_id", "created_at"}
+			actualColumnNames := make([]string, len(expectedColumnNames))
+			for i, describeColumnResult := range describeResult.Rows {
+				actualColumnNames[i] = describeColumnResult["Field"]
 			}
-		case "external_id":
-			{
-				assert.Equal("char(32)", row["Type"])
-				assert.Equal("YES", row["Null"])
-				assert.Equal("UNI", row["Key"])
-				assert.Equal("NULL", row["Default"])
-				assert.Empty(row["Extra"])
-				break
+
+			assert.Equal(expectedColumnNames, actualColumnNames)
+
+			// Validate describe output
+			for _, row := range describeResult.Rows {
+				assert.Len(row, 6)
+
+				switch row["Field"] {
+				case "id":
+					{
+						assert.Equal("int", row["Type"])
+						assert.Equal("NO", row["Null"])
+						assert.Equal("PRI", row["Key"])
+						assert.Equal("NULL", row["Default"])
+						assert.Equal("auto_increment", row["Extra"])
+						break
+					}
+				case "external_id":
+					{
+						assert.Equal("char(32)", row["Type"])
+						assert.Equal("YES", row["Null"])
+						assert.Equal("UNI", row["Key"])
+						assert.Equal("NULL", row["Default"])
+						assert.Empty(row["Extra"])
+						break
+					}
+				case "created_at":
+					{
+						assert.Equal("datetime", row["Type"])
+						assert.Equal("NO", row["Null"])
+						assert.Equal("MUL", row["Key"])
+						assert.Equal("CURRENT_TIMESTAMP", row["Default"])
+						assert.Equal("DEFAULT_GENERATED", row["Extra"])
+						break
+					}
+				default:
+					{
+						assert.Fail(fmt.Sprint("Unexpected column", row["Field"]))
+						break
+					}
+				}
 			}
-		case "created_at":
-			{
-				assert.Equal("datetime", row["Type"])
-				assert.Equal("NO", row["Null"])
-				assert.Equal("MUL", row["Key"])
-				assert.Equal("CURRENT_TIMESTAMP", row["Default"])
-				assert.Equal("DEFAULT_GENERATED", row["Extra"])
-				break
-			}
-		default:
-			{
-				assert.Fail(fmt.Sprint("Unexpected column", row["Field"]))
-				break
-			}
-		}
+		})
 	}
 }
