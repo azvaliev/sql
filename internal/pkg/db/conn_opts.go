@@ -17,8 +17,8 @@ const (
 	PostgreSQL DBFlavor = "pgx"
 )
 
-type DSNProducer interface {
-	ToDSN() (string, error)
+type ConnManager interface {
+	GetDSN() (string, error)
 	IsSafeMode() bool
 	GetFlavor() DBFlavor
 }
@@ -43,7 +43,7 @@ func (connOptions *DBConnOptions) GetFlavor() DBFlavor {
 	return connOptions.Flavor
 }
 
-func (connOptions *DBConnOptions) ToDSN() (string, error) {
+func (connOptions *DBConnOptions) GetDSN() (string, error) {
 	switch connOptions.Flavor {
 	case MySQL:
 		{
