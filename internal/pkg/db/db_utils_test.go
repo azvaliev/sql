@@ -94,7 +94,7 @@ func initMySQLTestDB(opts *InitTestDBOptions, ctx context.Context) (*mysql.MySQL
 		)
 	}
 
-	opts.ConnOptions.Port = uint16(port.Int())
+	opts.ConnOptions.Port = uint(port.Int())
 
 	return container, nil
 }
@@ -141,7 +141,7 @@ func initPostgresTestDB(opts *InitTestDBOptions, ctx context.Context) (*postgres
 		)
 	}
 
-	opts.ConnOptions.Port = uint16(port.Int())
+	opts.ConnOptions.Port = uint(port.Int())
 
 	return container, nil
 }

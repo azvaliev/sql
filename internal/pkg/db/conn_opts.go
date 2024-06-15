@@ -17,6 +17,14 @@ const (
 	PostgreSQL DBFlavor = "pgx"
 )
 
+func (flavor *DBFlavor) isValid() bool {
+	if *flavor != MySQL && *flavor != PostgreSQL {
+		return false
+	}
+
+	return true
+}
+
 type ConnManager interface {
 	GetDSN() (string, error)
 	IsSafeMode() bool
@@ -29,10 +37,18 @@ type DBConnOptions struct {
 	DatabaseName string
 	User         string
 	Password     string
-	Port         uint16
+	Port         uint
 	// Only works in MySQL
 	SafeMode          bool
 	AdditionalOptions map[string]string
+}
+
+func (connOptions *DBConnOptions) Validate() error {
+	if !connOptions.Flavor.isValid() {
+		return errors.New(fmt.Sprintf("Database type (ex: mysql, postgres) must be specified"))
+	}
+
+	return nil
 }
 
 func (connOptions *DBConnOptions) IsSafeMode() bool {
