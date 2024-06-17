@@ -3,6 +3,7 @@ package ui
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/azvaliev/redline/internal/pkg/db"
 	"github.com/gdamore/tcell/v2"
@@ -27,7 +28,7 @@ const (
 func Init(db *db.DBClient) *App {
 	tviewApp := tview.NewApplication()
 
-	queryTextArea := tview.NewTextArea().SetPlaceholder("SELECT * FROM ...")
+	queryTextArea := tview.NewTextArea().SetTextStyle(tcell.StyleDefault.Foreground(QueryTextColor))
 	queryTextArea.SetTitle("Query").SetBorder(true)
 
 	resultContainer := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -54,8 +55,17 @@ func Init(db *db.DBClient) *App {
 // Register listeners and run live app
 func (app *App) Run() (err error) {
 	app.queryTextArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		if event.Rune() == ';' {
-			query := app.queryTextArea.GetText()
+		query := app.queryTextArea.GetText()
+		queryLen := len(strings.TrimSpace(query))
+		pressedEnter := event.Key() == tcell.KeyEnter
+
+		var lastChar rune
+		if queryLen > 0 {
+			lastChar = rune(query[len(query)-1])
+		}
+
+		shouldCommitQuery := pressedEnter && lastChar == ';' && queryLen > 0
+		if shouldCommitQuery {
 			app.commitQuery(query)
 			app.queryTextArea.SetText("", false)
 
@@ -82,7 +92,7 @@ func getTextLineCount(text string) (lines int) {
 }
 
 func (app *App) commitQuery(query string) {
-	formattedQueryText := fmt.Sprint("> ", query, ";")
+	formattedQueryText := fmt.Sprint("> ", query)
 
 	queryTextItem := tview.
 		NewTextView().
@@ -112,7 +122,7 @@ func (app *App) commitQuery(query string) {
 	)
 	app.resultContainer.AddItem(
 		resultItem,
-		getTextLineCount(resultItem.GetText(false)),
+		getTextLineCount(resultItem.GetText(false))+1,
 		1,
 		false,
 	)
