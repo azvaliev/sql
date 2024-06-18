@@ -107,7 +107,7 @@ func (app *App) commitQuery(query string) {
 
 	if err != nil {
 		resultItem, height = app.createErrorView(err)
-	} else if results != nil {
+	} else if results != nil && len(results.Columns) > 0 {
 		resultItem, height = app.createResultView(results)
 	} else {
 		resultItem, height = app.createNoResultView()
@@ -130,7 +130,7 @@ func (app *App) commitQuery(query string) {
 func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 	errorTextItem := tview.
 		NewTextView().
-		SetText(dbErr.Error()).
+		SetText(fmt.Sprint(dbErr, "\n")).
 		SetTextColor(ErrorTextColor).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
@@ -142,7 +142,7 @@ func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 	noResultsTextItem := tview.
 		NewTextView().
-		SetText("Success: 0 results returned").
+		SetText("Success: 0 results returned\n").
 		SetTextColor(StandardTextColor).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
