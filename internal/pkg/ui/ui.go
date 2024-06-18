@@ -32,7 +32,6 @@ func Init(db *db.DBClient) *App {
 	queryTextArea.SetTitle("Query").SetBorder(true)
 
 	resultContainer := tview.NewFlex().SetDirection(tview.FlexRow)
-	resultContainer.SetBorder(true)
 
 	box := tview.NewFlex().
 		SetFullScreen(true).
@@ -103,15 +102,15 @@ func (app *App) commitQuery(query string) {
 		})
 
 	results, err := app.db.Query(query)
-	var resultItem *tview.TextView
-	resultItem = app.createNoResultView()
+	var resultItem tview.Primitive
+	var height int
 
 	if err != nil {
-		resultItem = app.createErrorView(err)
+		resultItem, height = app.createErrorView(err)
 	} else if results != nil {
-		resultItem = app.createResultView(results)
+		resultItem, height = app.createResultView(results)
 	} else {
-		resultItem = app.createNoResultView()
+		resultItem, height = app.createNoResultView()
 	}
 
 	app.resultContainer.AddItem(
@@ -122,25 +121,13 @@ func (app *App) commitQuery(query string) {
 	)
 	app.resultContainer.AddItem(
 		resultItem,
-		getTextLineCount(resultItem.GetText(false))+1,
+		height,
 		1,
 		false,
 	)
 }
 
-func (app *App) createResultView(results *db.QueryResult) *tview.TextView {
-	resultTextItem := tview.
-		NewTextView().
-		SetText(fmt.Sprint(results)).
-		SetTextColor(ResultTextColor).
-		SetChangedFunc(func() {
-			app.tviewApp.Draw()
-		})
-
-	return resultTextItem
-}
-
-func (app *App) createErrorView(dbErr error) *tview.TextView {
+func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 	errorTextItem := tview.
 		NewTextView().
 		SetText(dbErr.Error()).
@@ -149,10 +136,10 @@ func (app *App) createErrorView(dbErr error) *tview.TextView {
 			app.tviewApp.Draw()
 		})
 
-	return errorTextItem
+	return errorTextItem, getTextLineCount(errorTextItem.GetText(false))
 }
 
-func (app *App) createNoResultView() *tview.TextView {
+func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 	noResultsTextItem := tview.
 		NewTextView().
 		SetText("Success: 0 results returned").
@@ -161,5 +148,41 @@ func (app *App) createNoResultView() *tview.TextView {
 			app.tviewApp.Draw()
 		})
 
-	return noResultsTextItem
+	return noResultsTextItem, getTextLineCount(noResultsTextItem.GetText(false))
+}
+
+func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lines int) {
+	resultTable := tview.NewTable().
+		SetSeparator(tview.Borders.Vertical).
+		SetBorders(true)
+
+	for columnIdx, column := range result.Columns {
+		resultTable.SetCell(
+			0,
+			columnIdx,
+			tview.NewTableCell(column).
+				SetAlign(tview.AlignLeft),
+		)
+	}
+
+	for rowIdx, row := range result.Rows {
+		rowIdx := rowIdx + 1
+		for columnIdx, column := range result.Columns {
+			cellValue := row[column]
+			if cellValue == "" {
+				cellValue = "NULL"
+			}
+
+			resultTable.SetCell(
+				rowIdx,
+				columnIdx,
+				tview.NewTableCell(cellValue).SetAttributes(tcell.AttrDim),
+			)
+
+		}
+	}
+
+	height := len(result.Rows)*2 + 5
+
+	return resultTable, int(height)
 }
