@@ -29,6 +29,7 @@ func (scrollBox *ScrollBox) AddItem(item tview.Primitive, fixedHeight int) *Scro
 		Item:        item,
 		FixedHeight: fixedHeight,
 	})
+	scrollBox.setOffset(0)
 
 	return scrollBox
 }
@@ -39,18 +40,43 @@ func (scrollBox *ScrollBox) ClearItems() *ScrollBox {
 }
 
 // Offset is relative to the bottom
-func (scrollBox *ScrollBox) SetOffset(offset int) *ScrollBox {
-	scrollBox.offset = offset
+// Internal setter to control offset logic
+func (scrollBox *ScrollBox) setOffset(offset int) *ScrollBox {
+	itemSizeSum := scrollBox.getItemSizeSum()
+	_, _, _, height := scrollBox.GetInnerRect()
+
+	maxOffset := itemSizeSum - height
+	minOffset := 0
+
+	computedOffset := offset
+
+	// Clamp computedOffset so we're not scrolling past the results
+	{
+		if computedOffset > maxOffset {
+			computedOffset = maxOffset
+		}
+		if computedOffset < minOffset {
+			computedOffset = minOffset
+		}
+	}
+
+	scrollBox.offset = computedOffset
+
 	return scrollBox
+}
+
+func (scrollBox *ScrollBox) getItemSizeSum() (itemSizeSum int) {
+	for _, item := range scrollBox.items {
+		itemSizeSum += item.FixedHeight
+	}
+
+	return itemSizeSum
 }
 
 func (scrollBox *ScrollBox) Draw(screen tcell.Screen) {
 	scrollBox.Box.DrawForSubclass(screen, scrollBox)
 
-	var itemSizeSum int
-	for _, item := range scrollBox.items {
-		itemSizeSum += item.FixedHeight
-	}
+	itemSizeSum := scrollBox.getItemSizeSum()
 
 	// NOTE: Y axis is represented in tview as the number gets larger as the position is lower
 	// This y is representing the topmost point of the space we have available
@@ -64,6 +90,9 @@ func (scrollBox *ScrollBox) Draw(screen tcell.Screen) {
 		lowestYAvailable := y + height
 		// We want to start drawing so that the last item would end up on the lowest point available
 		currentY = lowestYAvailable - itemSizeSum
+
+		// If we have offset, we should start drawing lower by offset amount
+		currentY += scrollBox.offset
 	}
 
 	for _, item := range scrollBox.items {
@@ -74,4 +103,25 @@ func (scrollBox *ScrollBox) Draw(screen tcell.Screen) {
 
 		currentY += item.FixedHeight
 	}
+}
+
+func (scrollBox *ScrollBox) MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
+	return scrollBox.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
+		switch action {
+		case tview.MouseScrollDown:
+			{
+				scrollBox.setOffset(scrollBox.offset - 5)
+				consumed = true
+				break
+			}
+		case tview.MouseScrollUp:
+			{
+				scrollBox.setOffset(scrollBox.offset + 5)
+				consumed = true
+				break
+			}
+		}
+
+		return consumed, capture
+	})
 }
