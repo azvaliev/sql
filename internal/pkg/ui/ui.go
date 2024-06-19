@@ -12,7 +12,7 @@ import (
 
 type App struct {
 	tviewApp        *tview.Application
-	resultContainer *tview.Flex
+	resultContainer *ScrollBox
 	queryTextArea   *tview.TextArea
 	db              *db.DBClient
 }
@@ -24,19 +24,30 @@ const (
 	ErrorTextColor    = tcell.ColorRed
 )
 
+func MustGetScreenHeight() (height int) {
+	s, err := tcell.NewScreen()
+	if err != nil {
+		panic(fmt.Sprintf("Could not determine screen height for rendering\n%+v", err))
+	}
+
+	_, height = s.Size()
+	return height
+}
+
 // Setup initial layout and application structure
 func Init(db *db.DBClient) *App {
-	tviewApp := tview.NewApplication()
+	tviewApp := tview.NewApplication().EnableMouse(true)
 
 	queryTextArea := tview.NewTextArea().SetTextStyle(tcell.StyleDefault.Foreground(QueryTextColor))
 	queryTextArea.SetTitle("Query").SetBorder(true)
 
-	resultContainer := tview.NewFlex().SetDirection(tview.FlexRow)
+	resultContainer := NewScrollBox()
+	screenHeight := MustGetScreenHeight()
 
 	box := tview.NewFlex().
 		SetFullScreen(true).
 		SetDirection(tview.FlexRow).
-		AddItem(resultContainer, 0, 4, false).
+		AddItem(resultContainer, screenHeight-5, 4, false).
 		AddItem(queryTextArea, 5, 1, true)
 
 	tviewApp.SetRoot(box, true)
@@ -116,14 +127,10 @@ func (app *App) commitQuery(query string) {
 	app.resultContainer.AddItem(
 		queryTextItem,
 		getTextLineCount(query),
-		1,
-		false,
 	)
 	app.resultContainer.AddItem(
 		resultItem,
 		height,
-		1,
-		false,
 	)
 }
 
