@@ -18,10 +18,9 @@ type App struct {
 }
 
 const (
-	QueryTextColor    = tcell.ColorLightGray
-	StandardTextColor = tcell.ColorWhite
-	ResultTextColor   = tcell.ColorWhite
-	ErrorTextColor    = tcell.ColorRed
+	ColorPrimary   = tcell.ColorWhite
+	ColorSecondary = tcell.ColorLightGray
+	ColorError     = tcell.ColorRed
 )
 
 func MustGetScreenHeight() (height int) {
@@ -38,7 +37,7 @@ func MustGetScreenHeight() (height int) {
 func Init(db *db.DBClient) *App {
 	tviewApp := tview.NewApplication().EnableMouse(true)
 
-	queryTextArea := tview.NewTextArea().SetTextStyle(tcell.StyleDefault.Foreground(QueryTextColor))
+	queryTextArea := tview.NewTextArea().SetTextStyle(tcell.StyleDefault.Foreground(ColorSecondary))
 	queryTextArea.SetTitle("Query").SetBorder(true)
 
 	resultContainer := NewScrollBox()
@@ -107,7 +106,7 @@ func (app *App) commitQuery(query string) {
 	queryTextItem := tview.
 		NewTextView().
 		SetText(formattedQueryText).
-		SetTextColor(QueryTextColor).
+		SetTextColor(ColorSecondary).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
 		})
@@ -138,7 +137,7 @@ func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 	errorTextItem := tview.
 		NewTextView().
 		SetText(fmt.Sprint(dbErr, "\n")).
-		SetTextColor(ErrorTextColor).
+		SetTextColor(ColorError).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
 		})
@@ -150,7 +149,7 @@ func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 	noResultsTextItem := tview.
 		NewTextView().
 		SetText("Success: 0 results returned\n").
-		SetTextColor(StandardTextColor).
+		SetTextColor(ColorPrimary).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
 		})
