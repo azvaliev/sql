@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"regexp"
+	"strings"
 	"time"
 
 	_ "github.com/go-sql-driver/mysql"
@@ -210,10 +211,10 @@ func (db *DBClient) transformStatement(statement string) (transformedStatement s
 	return statement, nil
 }
 
-var describeRegExp = regexp.MustCompile(`^DESCRIBE "?(\w+)"?$`)
+var describeRegExp = regexp.MustCompile(`^DESCRIBE "?(\w+)"?;?$`)
 
 func statementIsDescribe(query string) (tableName string, isDescribe bool) {
-	matches := describeRegExp.FindStringSubmatch(query)
+	matches := describeRegExp.FindStringSubmatch(strings.TrimSpace(query))
 	if len(matches) != 2 {
 		return "", false
 	}
