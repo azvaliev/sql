@@ -1,4 +1,4 @@
-package cli_test
+package cmd_test
 
 import (
 	"flag"
@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/azvaliev/redline/internal/pkg/cli"
-	"github.com/azvaliev/redline/internal/pkg/db"
+	"github.com/azvaliev/sql/cmd"
+	"github.com/azvaliev/sql/internal/pkg/db"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -16,7 +16,7 @@ func TestParseArgsNoFlavor(t *testing.T) {
 	// Idea from: https://go.dev/talks/2014/testing.slide#1
 	// Essentially spawning a new process, because lack of DB Flavor will os.exit
 	if os.Getenv("BE_CRASHER") == "1" {
-		cli.ParseArgs()
+		cmd.ParseArgs()
 		return
 	}
 
@@ -121,7 +121,7 @@ func TestParseArgs(t *testing.T) {
 			setArgs(testCase.Args)
 			defer resetFlagsArgs()
 
-			actualParsedArgs := cli.ParseArgs()
+			actualParsedArgs := cmd.ParseArgs()
 			assert.Equal(t, testCase.ExpectedParsedArgs, actualParsedArgs, "expected parsed args to match", strings.Join(testCase.Args, " "))
 		})
 	}

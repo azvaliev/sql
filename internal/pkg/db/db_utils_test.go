@@ -7,7 +7,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/azvaliev/redline/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"

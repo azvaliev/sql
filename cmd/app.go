@@ -1,4 +1,4 @@
-package cli
+package cmd
 
 import (
 	"flag"
@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/azvaliev/redline/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db"
 )
 
 const (

@@ -1,4 +1,4 @@
-# Redline
+# Overview
 
 Simple SQL CLI, building upon `pg` and `mysql` CLI's with a few additional features
 
@@ -6,3 +6,9 @@ Simple SQL CLI, building upon `pg` and `mysql` CLI's with a few additional featu
 - Easy multiline editing of queries
 - Unified command to view table schema + indices. `DESCRIBE X`
 - Display results in a scrollable table, no wrapping
+
+## Installation
+
+```bash
+go install github.com/azvaliev/sql
+```

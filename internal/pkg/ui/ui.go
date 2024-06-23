@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/azvaliev/redline/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 )

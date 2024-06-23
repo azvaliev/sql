@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/azvaliev/redline/internal/pkg/cli"
-	"github.com/azvaliev/redline/internal/pkg/db"
-	"github.com/azvaliev/redline/internal/pkg/ui"
+	"github.com/azvaliev/sql/cmd"
+	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/ui"
 )
 
 func main() {
-	connOptions := cli.ParseArgs()
+	connOptions := cmd.ParseArgs()
 	dbClient, err := db.CreateDBClient(&connOptions)
 
 	if err != nil {

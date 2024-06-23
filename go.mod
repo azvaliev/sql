@@ -1,6 +1,18 @@
-module github.com/azvaliev/redline
+module github.com/azvaliev/sql
 
 go 1.22.0
+
+require (
+	github.com/gdamore/tcell/v2 v2.7.4
+	github.com/go-sql-driver/mysql v1.8.1
+	github.com/jackc/pgx/v5 v5.6.0
+	github.com/jmoiron/sqlx v1.4.0
+	github.com/rivo/tview v0.0.0-20240622152042-c38c796625fb
+	github.com/stretchr/testify v1.9.0
+	github.com/testcontainers/testcontainers-go v0.31.0
+	github.com/testcontainers/testcontainers-go/modules/mysql v0.31.0
+	github.com/testcontainers/testcontainers-go/modules/postgres v0.31.0
+)
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
@@ -19,19 +31,15 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/gdamore/encoding v1.0.0 // indirect
-	github.com/gdamore/tcell/v2 v2.7.1 // indirect
 	github.com/go-logr/logr v1.4.1 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/go-ole/go-ole v1.2.6 // indirect
-	github.com/go-sql-driver/mysql v1.8.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
-	github.com/jackc/pgx/v5 v5.6.0 // indirect
 	github.com/jackc/puddle/v2 v2.2.1 // indirect
-	github.com/jmoiron/sqlx v1.4.0 // indirect
 	github.com/klauspost/compress v1.16.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20211012122336-39d0f177ccd0 // indirect
@@ -47,15 +55,10 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20210106213030-5aafc221ea8c // indirect
-	github.com/rivo/tview v0.0.0-20240616192244-23476fa0bab2 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/shirou/gopsutil/v3 v3.23.12 // indirect
 	github.com/shoenig/go-m1cpu v0.1.6 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
-	github.com/stretchr/testify v1.9.0 // indirect
-	github.com/testcontainers/testcontainers-go v0.31.0 // indirect
-	github.com/testcontainers/testcontainers-go/modules/mysql v0.31.0 // indirect
-	github.com/testcontainers/testcontainers-go/modules/postgres v0.31.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/yusufpapurcu/wmi v1.2.3 // indirect
@@ -70,7 +73,6 @@ require (
 	golang.org/x/term v0.19.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.13.0 // indirect
-	golang.org/x/tools/cmd/cover v0.1.0-deprecated // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20230731190214-cbb8c96f2d6d // indirect
 	google.golang.org/grpc v1.58.3 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect

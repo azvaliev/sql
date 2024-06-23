@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/azvaliev/redline/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db"
 	"github.com/stretchr/testify/assert"
 )
 
