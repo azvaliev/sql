@@ -12,6 +12,16 @@ Simple SQL CLI, building upon `pg` and `mysql` CLI's with a few additional featu
 
 ## Installation
 
+### Via golang toolchain
+
+#### Prerequisites
+
+- Need go version 1.22 or greater
+- Make sure your go bin is in your path.
+    Easy way to add that is `export PATH="$(go env GOPATH)/bin:$PATH"`
+
+#### Command
+
 ```bash
 go install github.com/azvaliev/sql@latest
 ```
