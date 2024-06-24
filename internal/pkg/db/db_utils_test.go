@@ -111,6 +111,10 @@ func initPostgresTestDB(opts *InitTestDBOptions, ctx context.Context) (*postgres
 				WithStartupTimeout(60*time.Second),
 			wait.ForExposedPort(),
 		),
+		testcontainers.WithEnv(map[string]string{
+			"TZ":   "UTC",
+			"PGTZ": "UTC",
+		}),
 	}
 	connOptions := opts.ConnOptions
 

@@ -158,8 +158,9 @@ var postgresDataDisplayTestCases = []dataDisplayTypeTestCase{
 	{
 		ColumnName:    "timestamptzcolumn",
 		Datatype:      "TIMESTAMPTZ",
-		ProvidedValue: `'2023-01-01 12:34:56+00'`,
-		ExpectedValue: "2023-01-01T06:34:56-06:00",
+		ProvidedValue: `'2023-01-01 12:34:56 +00:00'`,
+		ExpectedValue: "2023-01-01T12:34:56Z",
+		SelectFmt:     "%s AT TIME ZONE 'UTC'",
 	},
 	{
 		ColumnName:    "floatcolumn",
