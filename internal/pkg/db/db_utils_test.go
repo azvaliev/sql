@@ -61,7 +61,7 @@ func initMySQLTestDB(opts *InitTestDBOptions, ctx context.Context) (*mysql.MySQL
 			wait.
 				ForLog("ready for connections").
 				WithOccurrence(2).
-				WithStartupTimeout(20*time.Second),
+				WithStartupTimeout(60*time.Second),
 			wait.ForExposedPort(),
 		),
 	}
@@ -108,9 +108,13 @@ func initPostgresTestDB(opts *InitTestDBOptions, ctx context.Context) (*postgres
 			wait.
 				ForLog("database system is ready to accept connections").
 				WithOccurrence(1).
-				WithStartupTimeout(20*time.Second),
+				WithStartupTimeout(60*time.Second),
 			wait.ForExposedPort(),
 		),
+		testcontainers.WithEnv(map[string]string{
+			"TZ":   "UTC",
+			"PGTZ": "UTC",
+		}),
 	}
 	connOptions := opts.ConnOptions
 
