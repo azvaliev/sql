@@ -26,6 +26,7 @@ jobs:
   
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     services:
       docker:
         image: docker:20.10.7
