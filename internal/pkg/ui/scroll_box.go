@@ -12,13 +12,17 @@ type scrollBoxItem struct {
 
 type ScrollBox struct {
 	*tview.Box
-	items  []*scrollBoxItem
-	offset int
+	items   []*scrollBoxItem
+	yOffset int
+	// Scroll all table items
+	xOffset int
 }
 
 func NewScrollBox() *ScrollBox {
 	scrollBox := &ScrollBox{
-		Box: tview.NewBox(),
+		Box:     tview.NewBox(),
+		yOffset: 0,
+		xOffset: 0,
 	}
 
 	return scrollBox
@@ -29,7 +33,7 @@ func (scrollBox *ScrollBox) AddItem(item tview.Primitive, fixedHeight int) *Scro
 		Item:        item,
 		FixedHeight: fixedHeight,
 	})
-	scrollBox.setOffset(0)
+	scrollBox.ClearOffsets()
 
 	return scrollBox
 }
@@ -39,9 +43,68 @@ func (scrollBox *ScrollBox) ClearItems() *ScrollBox {
 	return scrollBox
 }
 
+func (scrollBox *ScrollBox) ClearOffsets() *ScrollBox {
+	scrollBox.yOffset = 0
+	scrollBox.xOffset = 0
+
+	return scrollBox
+}
+
+const xOffsetScrollFactor = 2
+
+func (scrollBox *ScrollBox) ScrollRight() {
+	scrollBox.setXOffset(scrollBox.xOffset + xOffsetScrollFactor)
+}
+
+func (scrollBox *ScrollBox) ScrollLeft() {
+	scrollBox.setXOffset(scrollBox.xOffset - xOffsetScrollFactor)
+}
+
+const yOffsetScrollFactor = 5
+
+func (scrollBox *ScrollBox) ScrollUp() {
+	scrollBox.setYOffset(scrollBox.yOffset + yOffsetScrollFactor)
+}
+
+func (scrollBox *ScrollBox) ScrollDown() {
+	scrollBox.setYOffset(scrollBox.yOffset - yOffsetScrollFactor)
+}
+
+// X offset is relative to the left
+// Internal setter to control offset logic
+func (scrollBox *ScrollBox) setXOffset(offset int) *ScrollBox {
+	minOffset := 0
+	var maxOffset int
+	// Get max item offset for table scrolling
+	for _, item := range scrollBox.items {
+		switch v := item.Item.(type) {
+		case *tview.Table:
+			{
+				colCount := v.GetColumnCount()
+				if colCount > maxOffset {
+					maxOffset = colCount
+				}
+
+				break
+			}
+		}
+	}
+
+	computedOffset := offset
+
+	if offset < minOffset {
+		computedOffset = minOffset
+	} else if offset > maxOffset {
+		computedOffset = maxOffset
+	}
+
+	scrollBox.xOffset = computedOffset
+	return scrollBox
+}
+
 // Offset is relative to the bottom
 // Internal setter to control offset logic
-func (scrollBox *ScrollBox) setOffset(offset int) *ScrollBox {
+func (scrollBox *ScrollBox) setYOffset(offset int) *ScrollBox {
 	itemSizeSum := scrollBox.getItemSizeSum()
 	_, _, _, height := scrollBox.GetInnerRect()
 
@@ -60,7 +123,7 @@ func (scrollBox *ScrollBox) setOffset(offset int) *ScrollBox {
 		}
 	}
 
-	scrollBox.offset = computedOffset
+	scrollBox.yOffset = computedOffset
 
 	return scrollBox
 }
@@ -92,11 +155,20 @@ func (scrollBox *ScrollBox) Draw(screen tcell.Screen) {
 		currentY = lowestYAvailable - itemSizeSum
 
 		// If we have offset, we should start drawing lower by offset amount
-		currentY += scrollBox.offset
+		currentY += scrollBox.yOffset
 	}
 
 	for _, item := range scrollBox.items {
 		if item.Item != nil {
+			// Handle x offsets
+			switch v := item.Item.(type) {
+			case *tview.Table:
+				{
+					v.SetOffset(0, scrollBox.xOffset)
+					break
+				}
+			}
+
 			item.Item.SetRect(x, currentY, width, item.FixedHeight)
 			item.Item.Draw(screen)
 		}
@@ -105,18 +177,63 @@ func (scrollBox *ScrollBox) Draw(screen tcell.Screen) {
 	}
 }
 
+func (scrollBox *ScrollBox) InputHandler() func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
+	return scrollBox.WrapInputHandler(func(event *tcell.EventKey, setFocus func(p tview.Primitive)) {
+		switch event.Key() {
+		case tcell.KeyUp:
+			{
+				scrollBox.ScrollUp()
+				break
+			}
+		case tcell.KeyDown:
+			{
+				scrollBox.ScrollDown()
+				break
+			}
+		case tcell.KeyLeft:
+			{
+				scrollBox.ScrollLeft()
+				break
+			}
+		case tcell.KeyRight:
+			{
+				scrollBox.ScrollRight()
+				break
+			}
+		}
+	})
+}
+
 func (scrollBox *ScrollBox) MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
 	return scrollBox.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
 		switch action {
+		case tview.MouseLeftDoubleClick:
+		case tview.MouseLeftClick:
+			{
+				setFocus(scrollBox)
+				break
+			}
 		case tview.MouseScrollDown:
 			{
-				scrollBox.setOffset(scrollBox.offset - 5)
+				scrollBox.ScrollDown()
 				consumed = true
 				break
 			}
 		case tview.MouseScrollUp:
 			{
-				scrollBox.setOffset(scrollBox.offset + 5)
+				scrollBox.ScrollUp()
+				consumed = true
+				break
+			}
+		case tview.MouseScrollRight:
+			{
+				scrollBox.ScrollRight()
+				consumed = true
+				break
+			}
+		case tview.MouseScrollLeft:
+			{
+				scrollBox.ScrollLeft()
 				consumed = true
 				break
 			}

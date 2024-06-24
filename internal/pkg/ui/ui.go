@@ -140,7 +140,8 @@ func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 		SetTextColor(ColorError).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
-		})
+		}).
+		SetWrap(true)
 
 	return errorTextItem, getTextLineCount(errorTextItem.GetText(false))
 }
