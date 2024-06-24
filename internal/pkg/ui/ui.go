@@ -63,26 +63,7 @@ func Init(db *db.DBClient) *App {
 
 // Register listeners and run live app
 func (app *App) Run() (err error) {
-	app.queryTextArea.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-		query := app.queryTextArea.GetText()
-		queryLen := len(strings.TrimSpace(query))
-		pressedEnter := event.Key() == tcell.KeyEnter
-
-		var lastChar rune
-		if queryLen > 0 {
-			lastChar = rune(query[len(query)-1])
-		}
-
-		shouldCommitQuery := pressedEnter && lastChar == ';' && queryLen > 0
-		if shouldCommitQuery {
-			app.commitQuery(query)
-			app.queryTextArea.SetText("", false)
-
-			return nil
-		}
-
-		return event
-	})
+	app.queryTextArea.SetInputCapture(app.handleInputCapture)
 
 	return app.tviewApp.Run()
 }
@@ -192,4 +173,57 @@ func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lin
 	height := len(result.Rows)*2 + 5
 
 	return resultTable, int(height)
+}
+
+// Intercept text area key presses for shortcuts or committing querys
+func (app *App) handleInputCapture(event *tcell.EventKey) *tcell.EventKey {
+	isNotShortcut := event.Modifiers() != tcell.ModCtrl && event.Modifiers() != tcell.ModAlt
+
+	// Handle committing the query, if applicable
+	if isNotShortcut {
+		query := app.queryTextArea.GetText()
+		queryLen := len(strings.TrimSpace(query))
+		pressedEnter := event.Key() == tcell.KeyEnter
+
+		var lastChar rune
+		if queryLen > 0 {
+			lastChar = rune(query[len(query)-1])
+		}
+
+		shouldCommitQuery := pressedEnter && lastChar == ';' && queryLen > 0
+		if shouldCommitQuery {
+			app.commitQuery(query)
+			app.queryTextArea.SetText("", false)
+
+			return nil
+		}
+
+		return event
+	}
+
+	// Handle shortcuts
+	switch event.Key() {
+	case tcell.KeyUp:
+		{
+			app.resultContainer.ScrollUp()
+			return nil
+		}
+	case tcell.KeyDown:
+		{
+			app.resultContainer.ScrollDown()
+			return nil
+		}
+	case tcell.KeyLeft:
+		{
+			app.resultContainer.ScrollLeft()
+			return nil
+		}
+	case tcell.KeyRight:
+		{
+			app.resultContainer.ScrollRight()
+			return nil
+		}
+	}
+
+	return event
 }
