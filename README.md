@@ -13,7 +13,7 @@ Simple SQL CLI, building upon `pg` and `mysql` CLI's with a few additional featu
 ## Installation
 
 ```bash
-go install github.com/azvaliev/sql
+go install github.com/azvaliev/sql@latest
 ```
 
 ## Usage
