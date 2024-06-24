@@ -26,6 +26,8 @@ jobs:
   
   test:
     runs-on: ubuntu-latest
+    env:
+      TESTCONTAINER_DOCKER_NETWORK: testcontainers
     steps:
     - uses: actions/checkout@v4
 
