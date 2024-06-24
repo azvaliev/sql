@@ -19,5 +19,8 @@
 
 !Makefile
 
+# Static files for README docs
+!assets/*
+
 # ...even if they are in subdirectories
 !*/
