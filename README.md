@@ -2,10 +2,13 @@
 
 Simple SQL CLI, building upon `pg` and `mysql` CLI's with a few additional features
 
+![Screenshot Example](https://raw.githubusercontent.com/azvaliev/sql/master/assets/main.png)
+
 - One CLI for Postgres and MySQL
 - Easy multiline editing of queries
 - Unified command to view table schema. `DESCRIBE X`
 - Display results in a scrollable table, no wrapping
+
 
 ## Installation
 
