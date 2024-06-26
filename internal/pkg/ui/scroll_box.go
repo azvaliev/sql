@@ -207,12 +207,6 @@ func (scrollBox *ScrollBox) InputHandler() func(event *tcell.EventKey, setFocus 
 func (scrollBox *ScrollBox) MouseHandler() func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
 	return scrollBox.WrapMouseHandler(func(action tview.MouseAction, event *tcell.EventMouse, setFocus func(p tview.Primitive)) (consumed bool, capture tview.Primitive) {
 		switch action {
-		case tview.MouseLeftDoubleClick:
-		case tview.MouseLeftClick:
-			{
-				setFocus(scrollBox)
-				break
-			}
 		case tview.MouseScrollDown:
 			{
 				scrollBox.ScrollDown()
@@ -236,6 +230,19 @@ func (scrollBox *ScrollBox) MouseHandler() func(action tview.MouseAction, event 
 				scrollBox.ScrollLeft()
 				consumed = true
 				break
+			}
+		default:
+			{
+				for _, item := range scrollBox.items {
+					if item.Item == nil {
+						continue
+					}
+
+					consumed, capture = item.Item.MouseHandler()(action, event, setFocus)
+					if consumed {
+						return
+					}
+				}
 			}
 		}
 

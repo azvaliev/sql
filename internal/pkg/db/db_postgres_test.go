@@ -43,7 +43,7 @@ func TestDBPostgresConnOptions(t *testing.T) {
 				assert.NoError(err)
 				assert.Len(result.Rows, 1)
 
-				version := result.Rows[0]["version"]
+				version := result.Rows[0]["version"].ToString()
 
 				assert.Regexp(
 					regexp.MustCompile(
@@ -59,7 +59,7 @@ func TestDBPostgresConnOptions(t *testing.T) {
 				assert.NoError(err)
 				assert.Len(result.Rows, 1)
 
-				actualDatabaseName := result.Rows[0]["current_database"]
+				actualDatabaseName := result.Rows[0]["current_database"].ToString()
 
 				assert.Equal(connOptions.DatabaseName, actualDatabaseName)
 			}
@@ -117,7 +117,7 @@ func TestDBPostgresDescribe(t *testing.T) {
 			expectedColumnNames := []string{"id", "external_id", "created_at"}
 			actualColumnNames := make([]string, len(expectedColumnNames))
 			for i, describeColumnResult := range describeResult.Rows {
-				actualColumnNames[i] = describeColumnResult["Field"]
+				actualColumnNames[i] = describeColumnResult["Field"].ToString()
 			}
 
 			assert.Equal(expectedColumnNames, actualColumnNames)
@@ -126,29 +126,29 @@ func TestDBPostgresDescribe(t *testing.T) {
 			for _, row := range describeResult.Rows {
 				assert.Len(row, 5)
 
-				switch row["Field"] {
+				switch row["Field"].ToString() {
 				case "id":
 					{
-						assert.Equal("integer", row["Type"])
-						assert.Equal("NO", row["Null"])
-						assert.Equal("PRI", row["Key"])
-						assert.Equal("nextval('test_id_seq'::regclass)", row["Default"])
+						assert.Equal("integer", row["Type"].ToString())
+						assert.Equal("NO", row["Null"].ToString())
+						assert.Equal("PRI", row["Key"].ToString())
+						assert.Equal("nextval('test_id_seq'::regclass)", row["Default"].ToString())
 						break
 					}
 				case "external_id":
 					{
-						assert.Equal("character(32)", row["Type"])
-						assert.Equal("YES", row["Null"])
-						assert.Equal("UNI", row["Key"])
-						assert.Equal("NULL", row["Default"])
+						assert.Equal("character(32)", row["Type"].ToString())
+						assert.Equal("YES", row["Null"].ToString())
+						assert.Equal("UNI", row["Key"].ToString())
+						assert.Equal("NULL", row["Default"].ToString())
 						break
 					}
 				case "created_at":
 					{
-						assert.Equal("timestamp with time zone", row["Type"])
-						assert.Equal("NO", row["Null"])
-						assert.Equal("MUL", row["Key"])
-						assert.Equal("now()", row["Default"])
+						assert.Equal("timestamp with time zone", row["Type"].ToString())
+						assert.Equal("NO", row["Null"].ToString())
+						assert.Equal("MUL", row["Key"].ToString())
+						assert.Equal("now()", row["Default"].ToString())
 						break
 					}
 				default:

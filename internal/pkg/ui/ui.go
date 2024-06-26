@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -8,6 +9,7 @@ import (
 	"github.com/azvaliev/sql/internal/pkg/db"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"golang.design/x/clipboard"
 )
 
 type App struct {
@@ -82,16 +84,6 @@ func getTextLineCount(text string) (lines int) {
 }
 
 func (app *App) commitQuery(query string) {
-	formattedQueryText := fmt.Sprint("> ", query)
-
-	queryTextItem := tview.
-		NewTextView().
-		SetText(formattedQueryText).
-		SetTextColor(ColorSecondary).
-		SetChangedFunc(func() {
-			app.tviewApp.Draw()
-		})
-
 	results, err := app.db.Query(query)
 	var resultItem tview.Primitive
 	var height int
@@ -104,14 +96,144 @@ func (app *App) commitQuery(query string) {
 		resultItem, height = app.createNoResultView()
 	}
 
+	queryViewWithActions, queryViewWithActionsHeight := app.createQueryViewWithActions(
+		query,
+		results,
+		err,
+	)
+
 	app.resultContainer.AddItem(
-		queryTextItem,
-		getTextLineCount(query),
+		queryViewWithActions,
+		queryViewWithActionsHeight,
 	)
 	app.resultContainer.AddItem(
 		resultItem,
 		height,
 	)
+}
+
+var buttonStyle tcell.Style = tcell.
+	StyleDefault.
+	Background(tcell.ColorNone).
+	Foreground(ColorPrimary).
+	Underline(true)
+
+var buttonDisabledStyle tcell.Style = tcell.
+	StyleDefault.
+	Background(tcell.ColorNone).
+	Foreground(ColorSecondary).
+	StrikeThrough(true)
+
+var buttonActiveStyle tcell.Style = tcell.
+	StyleDefault.
+	Background(tcell.ColorNone).
+	Foreground(tcell.ColorBlue).
+	Underline(true)
+
+func mustInitClipboard() {
+	err := clipboard.Init()
+
+	// TODO: handle this gracefully?
+	if err != nil {
+		panic(errors.Join(
+			errors.New("no access to clipboard"),
+			err,
+		))
+	}
+}
+
+func (app *App) createQueryViewWithActions(
+	query string,
+	queryResult *db.QueryResult,
+	queryError error,
+) (queryView *tview.Grid, fixedHeight int) {
+	formattedQueryText := fmt.Sprint("> ", query)
+
+	queryTextItem := tview.
+		NewTextView().
+		SetText(formattedQueryText).
+		SetTextColor(ColorSecondary).
+		SetChangedFunc(func() {
+			app.tviewApp.Draw()
+		})
+
+	shouldDisableCopyResultsButtons := false
+	if queryError != nil {
+		shouldDisableCopyResultsButtons = true
+	}
+	if queryResult == nil {
+		shouldDisableCopyResultsButtons = true
+	}
+
+	queryCopyCSVButton := tview.
+		NewButton("Copy as CSV").
+		SetStyle(buttonStyle).
+		SetActivatedStyle(buttonActiveStyle).
+		SetDisabledStyle(buttonDisabledStyle).
+		SetDisabled(shouldDisableCopyResultsButtons).
+		SetSelectedFunc(func() {
+			mustInitClipboard()
+
+			resultCSV := queryResult.ToCSV()
+			clipboard.Write(clipboard.FmtText, resultCSV)
+		})
+
+	queryCopyJSONButton := tview.
+		NewButton("Copy as JSON").
+		SetStyle(buttonStyle).
+		SetActivatedStyle(buttonActiveStyle).
+		SetDisabledStyle(buttonDisabledStyle).
+		SetDisabled(shouldDisableCopyResultsButtons).
+		SetSelectedFunc(func() {
+			mustInitClipboard()
+
+			resultJSON := queryResult.ToJSON()
+			clipboard.Write(clipboard.FmtText, resultJSON)
+		})
+
+	queryView = tview.NewGrid().
+		SetRows(3).
+		SetColumns(
+			0,
+			0,
+			len(queryCopyCSVButton.GetLabel()),
+			len(queryCopyJSONButton.GetLabel()),
+		)
+
+	queryView.SetGap(0, 2)
+
+	queryView.AddItem(
+		queryTextItem,
+		0,
+		0,
+		1,
+		1,
+		0,
+		0,
+		false,
+	)
+	queryView.AddItem(
+		queryCopyCSVButton,
+		0,
+		2,
+		1,
+		1,
+		0,
+		0,
+		true,
+	)
+	queryView.AddItem(
+		queryCopyJSONButton,
+		0,
+		3,
+		1,
+		1,
+		0,
+		0,
+		true,
+	)
+
+	return queryView, getTextLineCount(query)
 }
 
 func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
@@ -157,14 +279,13 @@ func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lin
 		rowIdx := rowIdx + 1
 		for columnIdx, column := range result.Columns {
 			cellValue := row[column]
-			if cellValue == "" {
-				cellValue = "NULL"
-			}
 
 			resultTable.SetCell(
 				rowIdx,
 				columnIdx,
-				tview.NewTableCell(cellValue).SetAttributes(tcell.AttrDim),
+				tview.
+					NewTableCell(cellValue.ToString()).
+					SetAttributes(tcell.AttrDim),
 			)
 
 		}

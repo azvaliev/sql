@@ -110,7 +110,7 @@ func TestDBDataDisplay(t *testing.T) {
 					data := result.Rows[0]
 
 					assert.Len(data, 1, testCtx)
-					assert.Equal(tt.ExpectedValue, data[tt.ColumnName], testCtx)
+					assert.Equal(tt.ExpectedValue, data[tt.ColumnName].ToString(), testCtx)
 
 				})
 			}

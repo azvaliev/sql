@@ -2,7 +2,6 @@ package db
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"regexp"
 	"strings"
@@ -73,13 +72,6 @@ func (db *DBClient) Destroy() error {
 	return db.sqlDB.Close()
 }
 
-type QueryResult struct {
-	// Each row maps column -> value
-	Rows []map[string]string
-	// Column names, order preserved with how they were selected
-	Columns []string
-}
-
 // Run a query and store the output in a displayable format
 // NOTE: results and error may both be nil if a query is succesful yet doesn't return any rows
 func (db *DBClient) Query(statement string) (results *QueryResult, err error) {
@@ -118,13 +110,13 @@ func (db *DBClient) Query(statement string) (results *QueryResult, err error) {
 	}
 
 	// Scan all the rows into a string format, since we're just selecting to display
-	rawRows := [][]sql.NullString{}
+	rawRows := [][]NullString{}
 	for rows.Next() {
-		rawRow := make([]sql.NullString, len(columns))
+		rawRow := make([]NullString, len(columns))
 		rawRowPtrs := make([]any, len(columns))
 
 		for i := range rawRow {
-			rawRow[i] = sql.NullString{}
+			rawRow[i] = NullString{}
 			rawRowPtrs[i] = &rawRow[i]
 		}
 
@@ -139,18 +131,14 @@ func (db *DBClient) Query(statement string) (results *QueryResult, err error) {
 	}
 
 	// Transform each row into a map of column -> value
-	mappedRows := make([]map[string]string, len(rawRows))
+	mappedRows := make([]map[string]*NullString, len(rawRows))
 	for rowIdx := range rawRows {
 		rawRow := rawRows[rowIdx]
-		mappedRow := make(map[string]string, len(rawRow))
+		mappedRow := make(map[string]*NullString, len(rawRow))
 
 		for columnIdx, columnValue := range rawRow {
 			columnName := columns[columnIdx]
-			if columnValue.Valid {
-				mappedRow[columnName] = columnValue.String
-			} else {
-				mappedRow[columnName] = "NULL"
-			}
+			mappedRow[columnName] = &columnValue
 		}
 
 		mappedRows[rowIdx] = mappedRow

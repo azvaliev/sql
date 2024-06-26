@@ -44,7 +44,7 @@ func TestDBMySQLConnOptions(t *testing.T) {
 				assert.NoError(err)
 				assert.Len(result.Rows, 1)
 
-				version := result.Rows[0]["VERSION()"]
+				version := result.Rows[0]["VERSION()"].ToString()
 
 				assert.Regexp(
 					regexp.MustCompile(
@@ -60,7 +60,7 @@ func TestDBMySQLConnOptions(t *testing.T) {
 				assert.NoError(err)
 				assert.Len(result.Rows, 1)
 
-				actualDatabaseName := result.Rows[0]["DATABASE()"]
+				actualDatabaseName := result.Rows[0]["DATABASE()"].ToString()
 
 				assert.Equal(connOptions.DatabaseName, actualDatabaseName)
 			}
@@ -71,7 +71,7 @@ func TestDBMySQLConnOptions(t *testing.T) {
 				assert.NoError(err)
 				assert.Len(result.Rows, 1)
 
-				actualSafeMode := result.Rows[0]["SAFE_UPDATES_ENABLED"]
+				actualSafeMode := result.Rows[0]["SAFE_UPDATES_ENABLED"].ToString()
 
 				assert.Equal(fmt.Sprint(1), actualSafeMode)
 			}
@@ -124,7 +124,7 @@ func TestDBMySQLDescribe(t *testing.T) {
 			expectedColumnNames := []string{"id", "external_id", "created_at"}
 			actualColumnNames := make([]string, len(expectedColumnNames))
 			for i, describeColumnResult := range describeResult.Rows {
-				actualColumnNames[i] = describeColumnResult["Field"]
+				actualColumnNames[i] = describeColumnResult["Field"].ToString()
 			}
 
 			assert.Equal(expectedColumnNames, actualColumnNames)
@@ -133,37 +133,37 @@ func TestDBMySQLDescribe(t *testing.T) {
 			for _, row := range describeResult.Rows {
 				assert.Len(row, 6)
 
-				switch row["Field"] {
+				switch row["Field"].ToString() {
 				case "id":
 					{
-						assert.Equal("int", row["Type"])
-						assert.Equal("NO", row["Null"])
-						assert.Equal("PRI", row["Key"])
-						assert.Equal("NULL", row["Default"])
-						assert.Equal("auto_increment", row["Extra"])
+						assert.Equal("int", row["Type"].ToString())
+						assert.Equal("NO", row["Null"].ToString())
+						assert.Equal("PRI", row["Key"].ToString())
+						assert.Equal("NULL", row["Default"].ToString())
+						assert.Equal("auto_increment", row["Extra"].ToString())
 						break
 					}
 				case "external_id":
 					{
-						assert.Equal("char(32)", row["Type"])
-						assert.Equal("YES", row["Null"])
-						assert.Equal("UNI", row["Key"])
-						assert.Equal("NULL", row["Default"])
-						assert.Empty(row["Extra"])
+						assert.Equal("char(32)", row["Type"].ToString())
+						assert.Equal("YES", row["Null"].ToString())
+						assert.Equal("UNI", row["Key"].ToString())
+						assert.Equal("NULL", row["Default"].ToString())
+						assert.Empty(row["Extra"].ToString())
 						break
 					}
 				case "created_at":
 					{
-						assert.Equal("datetime", row["Type"])
-						assert.Equal("NO", row["Null"])
-						assert.Equal("MUL", row["Key"])
-						assert.Equal("CURRENT_TIMESTAMP", row["Default"])
-						assert.Equal("DEFAULT_GENERATED", row["Extra"])
+						assert.Equal("datetime", row["Type"].ToString())
+						assert.Equal("NO", row["Null"].ToString())
+						assert.Equal("MUL", row["Key"].ToString())
+						assert.Equal("CURRENT_TIMESTAMP", row["Default"].ToString())
+						assert.Equal("DEFAULT_GENERATED", row["Extra"].ToString())
 						break
 					}
 				default:
 					{
-						assert.Fail(fmt.Sprint("Unexpected column", row["Field"]))
+						assert.Fail(fmt.Sprint("Unexpected column", row["Field"].ToString()))
 						break
 					}
 				}
