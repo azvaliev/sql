@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/docker/go-connections/nat"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -57,13 +58,6 @@ func initMySQLTestDB(opts *InitTestDBOptions, ctx context.Context) (*mysql.MySQL
 		testcontainers.WithImage(
 			fmt.Sprint("mysql:", opts.Version),
 		),
-		testcontainers.WithWaitStrategy(
-			wait.
-				ForLog("ready for connections").
-				WithOccurrence(2).
-				WithStartupTimeout(60*time.Second),
-			wait.ForExposedPort(),
-		),
 	}
 	connOptions := opts.ConnOptions
 
@@ -77,6 +71,39 @@ func initMySQLTestDB(opts *InitTestDBOptions, ctx context.Context) (*mysql.MySQL
 		containerProps = append(containerProps, mysql.WithPassword(connOptions.Password))
 	}
 
+	port, err := nat.NewPort("tcp", "3306")
+	if err != nil {
+		panic(errors.Join(
+			errors.New("Failed to map nat port"),
+			err,
+		))
+	}
+	containerProps = append(containerProps, testcontainers.WithWaitStrategy(
+		wait.
+			ForLog("ready for connections").
+			WithOccurrence(2).
+			WithStartupTimeout(60*time.Second),
+		wait.ForExposedPort(),
+		wait.
+			ForSQL(port, string(db.MySQL), func(host string, port nat.Port) string {
+				var newConnOptions *db.DBConnOptions
+				newConnOptions = &*connOptions
+				newConnOptions.Port = uint(port.Int())
+				newConnOptions.Host = host
+
+				dsn, err := newConnOptions.GetDSN()
+				if err != nil {
+					panic(errors.Join(
+						errors.New("Failed to get DSN for test container DB health check"),
+						err,
+					))
+				}
+
+				return dsn
+			}).
+			WithQuery("SELECT VERSION()"),
+	))
+
 	container, err := mysql.RunContainer(ctx, containerProps...)
 	if err != nil {
 		return container, errors.Join(
@@ -85,8 +112,7 @@ func initMySQLTestDB(opts *InitTestDBOptions, ctx context.Context) (*mysql.MySQL
 		)
 	}
 
-	port, err := container.MappedPort(ctx, "3306/tcp")
-
+	port, err = container.MappedPort(ctx, "3306/tcp")
 	if err != nil {
 		container.Terminate(ctx)
 		return container, errors.Join(
