@@ -223,6 +223,22 @@ func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 	return noResultsTextItem, getTextLineCount(noResultsTextItem.GetText(false))
 }
 
+func createResultCell(value string) *tview.TableCell {
+	cell := tview.
+		NewTableCell(value).
+		SetAttributes(tcell.AttrDim)
+
+	cell.
+		SetClickedFunc(func() bool {
+			mustInitClipboard()
+			clipboard.Write(clipboard.FmtText, []byte(value))
+
+			return true
+		})
+
+	return cell
+}
+
 func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lines int) {
 	resultTable := NewTable()
 
@@ -243,11 +259,8 @@ func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lin
 			resultTable.SetCell(
 				rowIdx,
 				columnIdx,
-				tview.
-					NewTableCell(cellValue.ToString()).
-					SetAttributes(tcell.AttrDim),
+				createResultCell(cellValue.ToString()),
 			)
-
 		}
 	}
 
