@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/ui/components"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"golang.design/x/clipboard"
@@ -14,16 +15,10 @@ import (
 
 type App struct {
 	tviewApp        *tview.Application
-	resultContainer *ScrollBox
+	resultContainer *components.ScrollBox
 	queryTextArea   *tview.TextArea
 	db              *db.DBClient
 }
-
-const (
-	ColorPrimary   = tcell.ColorWhite
-	ColorSecondary = tcell.ColorLightGray
-	ColorError     = tcell.ColorRed
-)
 
 func MustGetScreenHeight() (height int) {
 	s, err := tcell.NewScreen()
@@ -39,13 +34,13 @@ func MustGetScreenHeight() (height int) {
 func Init(db *db.DBClient) *App {
 	tviewApp := tview.NewApplication().EnableMouse(true)
 
-	queryTextArea := tview.NewTextArea().SetTextStyle(tcell.StyleDefault.Foreground(ColorSecondary))
+	queryTextArea := NewTextArea()
 	queryTextArea.SetTitle("Query").SetBorder(true)
 
 	resultContainer := NewScrollBox()
 	screenHeight := MustGetScreenHeight()
 
-	box := tview.NewFlex().
+	box := NewFlex().
 		SetFullScreen(true).
 		SetDirection(tview.FlexRow).
 		AddItem(resultContainer, screenHeight-5, 4, false).
@@ -112,24 +107,6 @@ func (app *App) commitQuery(query string) {
 	)
 }
 
-var buttonStyle tcell.Style = tcell.
-	StyleDefault.
-	Background(tcell.ColorNone).
-	Foreground(ColorPrimary).
-	Underline(true)
-
-var buttonDisabledStyle tcell.Style = tcell.
-	StyleDefault.
-	Background(tcell.ColorNone).
-	Foreground(ColorSecondary).
-	StrikeThrough(true)
-
-var buttonActiveStyle tcell.Style = tcell.
-	StyleDefault.
-	Background(tcell.ColorNone).
-	Foreground(tcell.ColorBlue).
-	Underline(true)
-
 func mustInitClipboard() {
 	err := clipboard.Init()
 
@@ -149,10 +126,8 @@ func (app *App) createQueryViewWithActions(
 ) (queryView *tview.Grid, fixedHeight int) {
 	formattedQueryText := fmt.Sprint("> ", query)
 
-	queryTextItem := tview.
-		NewTextView().
+	queryTextItem := NewTextView(TextViewSecondary).
 		SetText(formattedQueryText).
-		SetTextColor(ColorSecondary).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
 		})
@@ -165,11 +140,7 @@ func (app *App) createQueryViewWithActions(
 		shouldDisableCopyResultsButtons = true
 	}
 
-	queryCopyCSVButton := tview.
-		NewButton("Copy as CSV").
-		SetStyle(buttonStyle).
-		SetActivatedStyle(buttonActiveStyle).
-		SetDisabledStyle(buttonDisabledStyle).
+	queryCopyCSVButton := NewButton("Copy as CSV").
 		SetDisabled(shouldDisableCopyResultsButtons).
 		SetSelectedFunc(func() {
 			mustInitClipboard()
@@ -178,11 +149,7 @@ func (app *App) createQueryViewWithActions(
 			clipboard.Write(clipboard.FmtText, resultCSV)
 		})
 
-	queryCopyJSONButton := tview.
-		NewButton("Copy as JSON").
-		SetStyle(buttonStyle).
-		SetActivatedStyle(buttonActiveStyle).
-		SetDisabledStyle(buttonDisabledStyle).
+	queryCopyJSONButton := NewButton("Copy as JSON").
 		SetDisabled(shouldDisableCopyResultsButtons).
 		SetSelectedFunc(func() {
 			mustInitClipboard()
@@ -191,16 +158,15 @@ func (app *App) createQueryViewWithActions(
 			clipboard.Write(clipboard.FmtText, resultJSON)
 		})
 
-	queryView = tview.NewGrid().
+	queryView = NewGrid().
 		SetRows(3).
 		SetColumns(
 			0,
 			0,
 			len(queryCopyCSVButton.GetLabel()),
 			len(queryCopyJSONButton.GetLabel()),
-		)
-
-	queryView.SetGap(0, 2)
+		).
+		SetGap(0, 2)
 
 	queryView.AddItem(
 		queryTextItem,
@@ -237,10 +203,8 @@ func (app *App) createQueryViewWithActions(
 }
 
 func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
-	errorTextItem := tview.
-		NewTextView().
+	errorTextItem := NewTextView(TextViewError).
 		SetText(fmt.Sprint(dbErr, "\n")).
-		SetTextColor(ColorError).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
 		}).
@@ -250,10 +214,8 @@ func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 }
 
 func (app *App) createNoResultView() (view *tview.TextView, lines int) {
-	noResultsTextItem := tview.
-		NewTextView().
+	noResultsTextItem := NewTextView(TextViewPrimary).
 		SetText("Success: 0 results returned\n").
-		SetTextColor(ColorPrimary).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
 		})
@@ -262,9 +224,7 @@ func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 }
 
 func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lines int) {
-	resultTable := tview.NewTable().
-		SetSeparator(tview.Borders.Vertical).
-		SetBorders(true)
+	resultTable := NewTable()
 
 	for columnIdx, column := range result.Columns {
 		resultTable.SetCell(
