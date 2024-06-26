@@ -20,7 +20,8 @@
 !Makefile
 
 # Static files for README docs
-!assets/*
+!assets/**/*
+**/.DS_Store
 
 # ...even if they are in subdirectories
 !*/
