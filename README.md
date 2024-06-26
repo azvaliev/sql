@@ -57,6 +57,14 @@ Example: To scroll results up, (`ctrl` or `option`) + `↑`
 
 When you run a query and it is succesfully, at the top right on the table you'll see a `Copy as CSV` or `Copy as JSON` button, to copy the table results in the desired format
 
+##### JSON
+
+![How to copy results as JSON](https://raw.githubusercontent.com/azvaliev/sql/master/assets/usage/copy-results-as-json.gif)
+
+##### CSV
+
+![How to copy results as CSV](https://raw.githubusercontent.com/azvaliev/sql/master/assets/usage/copy-results-as-csv.gif)
+
 #### Copy cell result
 
 Occasionally, one may want to copy the output of a particular cell in the result table, especially for use in subsequent queries.
@@ -65,13 +73,6 @@ Just click on the cell you want to copy and it will copy to the clipboard.
 
 ![How to copy cell result](https://raw.githubusercontent.com/azvaliev/sql/master/assets/usage/copy-cell-results.gif)
 
-##### JSON
-
-![How to copy results as JSON](https://raw.githubusercontent.com/azvaliev/sql/master/assets/usage/copy-results-as-json.gif)
-
-##### CSV
-
-![How to copy results as CSV](https://raw.githubusercontent.com/azvaliev/sql/master/assets/usage/copy-results-as-csv.gif)
 
 #### Safe Mode (MySQL)
 
