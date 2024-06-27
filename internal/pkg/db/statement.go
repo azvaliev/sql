@@ -24,19 +24,50 @@ func (db *DBClient) transformStatement(statement string) (
 		return db.buildDescribeQuery(tableName, statement)
 	}
 
+	if statementIsShowTables(statement) {
+		return db.buildShowTablesQuery(statement)
+	}
+
 	return &StatementWithParams{statement, nil}, nil
 }
 
-var describeRegExp = regexp.MustCompile(`^DESCRIBE "?(\w+)"?;?$`)
+var describeRegExp = regexp.MustCompile(`(?i)^DESCRIBE "?(\w+)"?;?$`)
 
-func statementIsDescribe(query string) (tableName string, isDescribe bool) {
-	matches := describeRegExp.FindStringSubmatch(strings.TrimSpace(query))
+func statementIsDescribe(statement string) (tableName string, isDescribe bool) {
+	matches := describeRegExp.FindStringSubmatch(strings.TrimSpace(statement))
 	if len(matches) != 2 {
 		return "", false
 	}
 	tableName = matches[1]
 
 	return tableName, true
+}
+
+func statementIsShowTables(statement string) bool {
+	normalizedStatement := strings.ReplaceAll(
+		strings.ToUpper(strings.TrimSpace(statement)),
+		";",
+		"",
+	)
+
+	return normalizedStatement == "SHOW TABLES"
+}
+
+func (db *DBClient) buildShowTablesQuery(originalStatement string) (showTablesQuery *StatementWithParams, err error) {
+	switch db.connManager.GetFlavor() {
+	case PostgreSQL:
+		{
+			return &StatementWithParams{postgresShowTablesQuery, nil}, nil
+		}
+	case MySQL:
+		{
+			return &StatementWithParams{originalStatement, nil}, nil
+		}
+	default:
+		{
+			return nil, fmt.Errorf("SHOW TABLES not supported for %s", db.connManager.GetFlavor())
+		}
+	}
 }
 
 func (db *DBClient) buildDescribeQuery(tableName string, originalStatement string) (describeQuery *StatementWithParams, err error) {
@@ -67,7 +98,7 @@ const postgresTableExistQuery string = `
    SELECT EXISTS (
        SELECT 1
        FROM   information_schema.tables
-       WHERE  table_schema = 'public'
+       WHERE  table_schema = current_schema()
        AND    table_name = $1
    );`
 
@@ -90,6 +121,12 @@ func (db *DBClient) assertPostgresTableExists(tableName string) (exists bool, er
 
 	return exists, nil
 }
+
+const postgresShowTablesQuery string = `
+SELECT table_name
+FROM information_schema.tables
+WHERE table_schema = current_schema()
+`
 
 const postgresDescribeQuery string = `
 WITH columns AS (

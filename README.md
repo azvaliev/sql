@@ -45,6 +45,10 @@ The text area is multi-line and you can use either the mouse or arrow keys to na
 
 I've ported the MySQL `DESCRIBE X` command for easily viewing details about a table. See [MySQL documentation](https://dev.mysql.com/doc/refman/8.4/en/show-columns.html) for details
 
+#### Unified SHOW TABLES command
+
+I've ported the MySQL `SHOW TABLES` command for easily all tables in the current database. It just will return a list of all tables in the current databse
+
 #### Handling overflowing results
 
 When editing the text area, one can scroll the results section using `ctrl` or `option` (MacOS) + corresponding arrow for direction to scroll.
