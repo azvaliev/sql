@@ -3,6 +3,7 @@ package ui
 import (
 	"errors"
 	"fmt"
+	"math"
 	"regexp"
 	"strings"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/azvaliev/sql/internal/pkg/ui/components"
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
+	"github.com/rivo/uniseg"
 	"golang.design/x/clipboard"
 )
 
@@ -20,14 +22,14 @@ type App struct {
 	db              *db.DBClient
 }
 
-func MustGetScreenHeight() (height int) {
+func MustGetScreenDimensions() (width, height int) {
 	s, err := tcell.NewScreen()
 	if err != nil {
 		panic(fmt.Sprintf("Could not determine screen height for rendering\n%+v", err))
 	}
 
-	_, height = s.Size()
-	return height
+	width, height = s.Size()
+	return width, height
 }
 
 // Setup initial layout and application structure
@@ -38,7 +40,7 @@ func Init(db *db.DBClient) *App {
 	queryTextArea.SetTitle("Query").SetBorder(true)
 
 	resultContainer := NewScrollBox()
-	screenHeight := MustGetScreenHeight()
+	_, screenHeight := MustGetScreenDimensions()
 
 	box := NewFlex().
 		SetFullScreen(true).
@@ -67,15 +69,18 @@ func (app *App) Run() (err error) {
 
 var newlineRegexp = regexp.MustCompile("\n")
 
-func getTextLineCount(text string) (lines int) {
-	lines = 1
+func getTextLineCount(textView *tview.TextView, maxWidth int) int {
+	if maxWidth <= 0 {
+		_, _, maxWidth, _ = textView.GetInnerRect()
+	}
 
-	newLineChars := len(
-		newlineRegexp.FindAllStringSubmatchIndex(text, -1),
+	// Get string width, in the same units as tview uses
+	totalStringCharsWidth := float64(
+		uniseg.StringWidth(textView.GetText(true)),
 	)
-	lines += newLineChars
 
-	return lines
+	lines := math.Ceil(totalStringCharsWidth / float64(maxWidth))
+	return int(lines)
 }
 
 func (app *App) commitQuery(query string) {
@@ -126,17 +131,24 @@ func (app *App) createQueryViewWithActions(
 ) (queryView *tview.Grid, fixedHeight int) {
 	formattedQueryText := fmt.Sprint("> ", query)
 
+	_, _, containerWidth, _ := app.resultContainer.GetInnerRect()
+	queryTextItemWidth := containerWidth / 2
+
 	queryTextItem := NewTextView(TextViewSecondary).
 		SetText(formattedQueryText).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
-		})
+		}).
+		SetWrap(true).
+		SetWordWrap(true)
+
+	textItemHeight := getTextLineCount(queryTextItem, queryTextItemWidth)
 
 	shouldDisableCopyResultsButtons := false
 	if queryError != nil {
 		shouldDisableCopyResultsButtons = true
 	}
-	if queryResult == nil {
+	if queryResult == nil || len(queryResult.Columns) == 0 {
 		shouldDisableCopyResultsButtons = true
 	}
 
@@ -161,7 +173,7 @@ func (app *App) createQueryViewWithActions(
 	queryView = NewGrid().
 		SetRows(3).
 		SetColumns(
-			0,
+			queryTextItemWidth,
 			0,
 			len(queryCopyCSVButton.GetLabel()),
 			len(queryCopyJSONButton.GetLabel()),
@@ -199,7 +211,7 @@ func (app *App) createQueryViewWithActions(
 		true,
 	)
 
-	return queryView, getTextLineCount(query)
+	return queryView, textItemHeight
 }
 
 func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
@@ -210,7 +222,11 @@ func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 		}).
 		SetWrap(true)
 
-	return errorTextItem, getTextLineCount(errorTextItem.GetText(false))
+	_, _, containerWidth, _ := app.resultContainer.GetInnerRect()
+	textLines := getTextLineCount(errorTextItem, containerWidth)
+	linesWithSpacing := textLines + 2
+
+	return errorTextItem, linesWithSpacing
 }
 
 func (app *App) createNoResultView() (view *tview.TextView, lines int) {
@@ -220,7 +236,11 @@ func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 			app.tviewApp.Draw()
 		})
 
-	return noResultsTextItem, getTextLineCount(noResultsTextItem.GetText(false))
+	_, _, containerWidth, _ := app.resultContainer.GetInnerRect()
+	textLines := getTextLineCount(noResultsTextItem, containerWidth)
+	linesWithSpacing := textLines + 2
+
+	return noResultsTextItem, linesWithSpacing
 }
 
 func createResultCell(value string) *tview.TableCell {
