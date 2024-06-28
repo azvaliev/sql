@@ -88,16 +88,21 @@ func (app *App) commitQuery(query string) {
 	var resultItem tview.Primitive
 	var height int
 
+	var queryAction AvailableActions
 	if err != nil {
 		resultItem, height = app.createErrorView(err)
+		queryAction = QueryNoResultsErrorAction
 	} else if results != nil && len(results.Columns) > 0 {
 		resultItem, height = app.createResultView(results)
+		queryAction = QueryWithResultsActions
 	} else {
 		resultItem, height = app.createNoResultView()
+		queryAction = QueryNoResultsErrorAction
 	}
 
 	queryViewWithActions, queryViewWithActionsHeight := app.createQueryViewWithActions(
 		query,
+		queryAction,
 		results,
 		err,
 	)
@@ -124,94 +129,124 @@ func mustInitClipboard() {
 	}
 }
 
+type AvailableActions int
+
+const (
+	QueryWithResultsActions AvailableActions = iota + 1
+	QueryNoResultsErrorAction
+)
+
 func (app *App) createQueryViewWithActions(
 	query string,
+	queryAction AvailableActions,
 	queryResult *db.QueryResult,
 	queryError error,
 ) (queryView *tview.Grid, fixedHeight int) {
-	formattedQueryText := fmt.Sprint("> ", query)
+	queryView = NewGrid().
+		SetRows(3).
+		SetGap(0, 2)
 
 	_, _, containerWidth, _ := app.resultContainer.GetInnerRect()
 	queryTextItemWidth := containerWidth / 2
+	gridHeight := 1
 
-	queryTextItem := NewTextView(TextViewSecondary).
-		SetText(formattedQueryText).
-		SetChangedFunc(func() {
-			app.tviewApp.Draw()
-		}).
-		SetWrap(true).
-		SetWordWrap(true)
+	// Create query text item
+	{
+		formattedQueryText := fmt.Sprint("> ", query)
 
-	textItemHeight := getTextLineCount(queryTextItem, queryTextItemWidth)
+		queryTextItem := NewTextView(TextViewSecondary).
+			SetText(formattedQueryText).
+			SetChangedFunc(func() {
+				app.tviewApp.Draw()
+			}).
+			SetWrap(true).
+			SetWordWrap(true)
 
-	shouldDisableCopyResultsButtons := false
-	if queryError != nil {
-		shouldDisableCopyResultsButtons = true
-	}
-	if queryResult == nil || len(queryResult.Columns) == 0 {
-		shouldDisableCopyResultsButtons = true
-	}
+		gridHeight = getTextLineCount(queryTextItem, queryTextItemWidth)
 
-	queryCopyCSVButton := NewButton("Copy as CSV").
-		SetDisabled(shouldDisableCopyResultsButtons).
-		SetSelectedFunc(func() {
-			mustInitClipboard()
-
-			resultCSV := queryResult.ToCSV()
-			clipboard.Write(clipboard.FmtText, resultCSV)
-		})
-
-	queryCopyJSONButton := NewButton("Copy as JSON").
-		SetDisabled(shouldDisableCopyResultsButtons).
-		SetSelectedFunc(func() {
-			mustInitClipboard()
-
-			resultJSON := queryResult.ToJSON()
-			clipboard.Write(clipboard.FmtText, resultJSON)
-		})
-
-	queryView = NewGrid().
-		SetRows(3).
-		SetColumns(
-			queryTextItemWidth,
+		queryView.AddItem(
+			queryTextItem,
 			0,
-			len(queryCopyCSVButton.GetLabel()),
-			len(queryCopyJSONButton.GetLabel()),
-		).
-		SetGap(0, 2)
+			0,
+			1,
+			1,
+			0,
+			0,
+			false,
+		)
+	}
 
-	queryView.AddItem(
-		queryTextItem,
-		0,
-		0,
-		1,
-		1,
-		0,
-		0,
-		false,
-	)
-	queryView.AddItem(
-		queryCopyCSVButton,
-		0,
-		2,
-		1,
-		1,
-		0,
-		0,
-		true,
-	)
-	queryView.AddItem(
-		queryCopyJSONButton,
-		0,
-		3,
-		1,
-		1,
-		0,
-		0,
-		true,
-	)
+	// Query text item + gap
+	columns := []int{queryTextItemWidth, 0}
+	buttonColumnStartIdx := len(columns)
 
-	return queryView, textItemHeight
+	// Add all the buttons to the grid
+	actionButtons := createQueryActionButtons(queryResult, queryError, queryAction)
+	for buttonIdx, button := range actionButtons {
+		columnIdx := buttonColumnStartIdx + buttonIdx
+
+		columns = append(columns, len(button.GetLabel()))
+		queryView.AddItem(
+			button,
+			0,
+			columnIdx,
+			1,
+			1,
+			0,
+			0,
+			true,
+		)
+	}
+
+	queryView.SetColumns(columns...)
+	return queryView, gridHeight
+}
+
+func createQueryActionButtons(queryResult *db.QueryResult, queryError error, queryActions AvailableActions) (buttons []*tview.Button) {
+	switch queryActions {
+	case QueryWithResultsActions:
+		{
+			queryCopyCSVButton := NewButton("Copy as CSV").
+				SetSelectedFunc(func() {
+					mustInitClipboard()
+
+					resultCSV := queryResult.ToCSV()
+					clipboard.Write(clipboard.FmtText, resultCSV)
+				})
+
+			queryCopyJSONButton := NewButton("Copy as JSON").
+				SetSelectedFunc(func() {
+					mustInitClipboard()
+
+					resultJSON := queryResult.ToJSON()
+					clipboard.Write(clipboard.FmtText, resultJSON)
+				})
+
+			return []*tview.Button{queryCopyCSVButton, queryCopyJSONButton}
+		}
+	case QueryNoResultsErrorAction:
+		{
+			queryCopyResultsButton := NewButton("Copy Output").
+				SetSelectedFunc(func() {
+					mustInitClipboard()
+
+					var result string
+					if queryError != nil {
+						result = queryError.Error()
+					} else {
+						result = NoResultsMessage
+					}
+
+					clipboard.Write(clipboard.FmtText, []byte(result))
+				})
+
+			return []*tview.Button{queryCopyResultsButton}
+		}
+	default:
+		{
+			return buttons
+		}
+	}
 }
 
 func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
@@ -229,9 +264,11 @@ func (app *App) createErrorView(dbErr error) (view *tview.TextView, lines int) {
 	return errorTextItem, linesWithSpacing
 }
 
+const NoResultsMessage string = "Success: 0 results returned\n"
+
 func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 	noResultsTextItem := NewTextView(TextViewPrimary).
-		SetText("Success: 0 results returned\n").
+		SetText(NoResultsMessage).
 		SetChangedFunc(func() {
 			app.tviewApp.Draw()
 		})
