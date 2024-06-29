@@ -20,6 +20,7 @@ type App struct {
 	resultContainer *components.ScrollBox
 	queryTextArea   *tview.TextArea
 	db              *db.DBClient
+	queryHistory    *QueryHistory
 }
 
 func MustGetScreenDimensions() (width, height int) {
@@ -55,6 +56,7 @@ func Init(db *db.DBClient) *App {
 		resultContainer: resultContainer,
 		queryTextArea:   queryTextArea,
 		db:              db,
+		queryHistory:    NewQueryHistory(100),
 	}
 
 	return &app
@@ -84,6 +86,7 @@ func getTextLineCount(textView *tview.TextView, maxWidth int) int {
 }
 
 func (app *App) commitQuery(query string) {
+	defer app.queryHistory.AddEntry(query)
 	results, err := app.db.Query(query)
 	var resultItem tview.Primitive
 	var height int
@@ -330,26 +333,59 @@ func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lin
 func (app *App) handleInputCapture(event *tcell.EventKey) *tcell.EventKey {
 	isNotShortcut := event.Modifiers() != tcell.ModCtrl && event.Modifiers() != tcell.ModAlt
 
-	// Handle committing the query, if applicable
 	if isNotShortcut {
 		query := app.queryTextArea.GetText()
 		queryLen := len(strings.TrimSpace(query))
-		pressedEnter := event.Key() == tcell.KeyEnter
 
-		var lastChar rune
-		if queryLen > 0 {
-			lastChar = rune(query[len(query)-1])
+		// user wasn't paginating before
+		// or they have text typed in we want to be careful before removing
+		shouldNotAllowScrollingQueryHistory := queryLen > 0 && !app.queryHistory.IsPositionSet()
+
+		switch event.Key() {
+		// Handle committing the query, if applicable
+		case tcell.KeyEnter:
+			{
+				var lastChar rune
+				if queryLen > 0 {
+					lastChar = rune(query[len(query)-1])
+				}
+
+				shouldCommitQuery := lastChar == ';' && queryLen > 0
+				if shouldCommitQuery {
+					app.commitQuery(query)
+					app.queryTextArea.SetText("", false)
+
+					return nil
+				}
+				return event
+			}
+		case tcell.KeyUp:
+			{
+				if shouldNotAllowScrollingQueryHistory {
+					return event
+				}
+
+				prevEntry := app.queryHistory.GetPrevEntry()
+				app.queryTextArea.SetText(prevEntry, false)
+
+				return nil
+			}
+		case tcell.KeyDown:
+			{
+				if shouldNotAllowScrollingQueryHistory {
+					return event
+				}
+
+				nextEntry := app.queryHistory.GetNextEntry()
+				app.queryTextArea.SetText(nextEntry, false)
+
+				return nil
+			}
+		default:
+			{
+				app.queryHistory.ResetPosition()
+			}
 		}
-
-		shouldCommitQuery := pressedEnter && lastChar == ';' && queryLen > 0
-		if shouldCommitQuery {
-			app.commitQuery(query)
-			app.queryTextArea.SetText("", false)
-
-			return nil
-		}
-
-		return event
 	}
 
 	// Handle shortcuts
