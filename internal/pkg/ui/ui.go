@@ -384,6 +384,7 @@ func (app *App) handleInputCapture(event *tcell.EventKey) *tcell.EventKey {
 		default:
 			{
 				app.queryHistory.ResetPosition()
+				return event
 			}
 		}
 	}
