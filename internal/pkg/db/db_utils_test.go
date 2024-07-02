@@ -9,6 +9,7 @@ import (
 
 	"github.com/azvaliev/sql/internal/pkg/db"
 	"github.com/docker/go-connections/nat"
+	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -29,6 +30,27 @@ var TESTED_MYSQL_VERSIONS = [...]string{"8.0", "8.2", "8.3", "8.4"}
 
 // last 3 major versions
 var TESTED_POSTGRES_VERSIONS = [...]string{"15", "16"}
+
+func mustInitTestDBWithClient(
+	opts *InitTestDBOptions,
+	assert *assert.Assertions,
+) (
+	dbClient *db.DBClient,
+	cleanup func(),
+) {
+	ctx := context.Background()
+	testDbOptions := InitTestDBOptions{opts.Version, opts.ConnOptions}
+	container, err := initTestDB(&testDbOptions, ctx)
+	assert.NoError(err, "Failed to initialize test DB container", testDbOptions)
+
+	cleanup = func() {
+		testDBCleanup(ctx, container)
+	}
+	dbClient, err = db.CreateDBClient(opts.ConnOptions)
+	assert.NoError(err, "Failed to initialize DB client", opts.ConnOptions)
+
+	return dbClient, cleanup
+}
 
 // Create a test database container
 // Make sure to call `defer createTestDBCleanup(container)` to clean this up
@@ -176,7 +198,7 @@ func initPostgresTestDB(opts *InitTestDBOptions, ctx context.Context) (*postgres
 	return container, nil
 }
 
-func createTestDBCleanup(ctx context.Context, container TestDBContainer) {
+func testDBCleanup(ctx context.Context, container TestDBContainer) {
 	if err := container.Terminate(ctx); err != nil {
 		log.Fatalf("failed to terminate container: %s", err)
 	}

@@ -64,7 +64,7 @@ func TestDBDataDisplay(t *testing.T) {
 			container, err := initTestDB(&initTestDBOptions, ctx)
 			assert.NoError(t, err)
 
-			defer createTestDBCleanup(ctx, container)
+			defer testDBCleanup(ctx, container)
 
 			dbClient, err := db.CreateDBClient(&testSuite.ConnOptions)
 			assert.NoError(t, err)

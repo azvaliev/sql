@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/azvaliev/sql/internal/pkg/db"
@@ -56,7 +57,7 @@ func TestDBShowTables(t *testing.T) {
 				container, err := initTestDB(&testDbOptions, ctx)
 				assert.NoError(err)
 
-				defer createTestDBCleanup(ctx, container)
+				defer testDBCleanup(ctx, container)
 
 				dbClient, err := db.CreateDBClient(&testSuite.ConnOptions)
 				assert.NoError(err)
@@ -98,4 +99,153 @@ func TestDBShowTables(t *testing.T) {
 	}
 }
 
-//
+func TestDBShowIndexesPostgres(t *testing.T) {
+	connOptions := db.DBConnOptions{
+		Flavor:       db.PostgreSQL,
+		Host:         "localhost",
+		DatabaseName: "test",
+		User:         "user",
+		Password:     "password",
+		Port:         5432,
+	}
+
+	for _, postgresVersion := range TESTED_POSTGRES_VERSIONS {
+		t.Run(fmt.Sprintf("Postgres %s - Show INDEXES", postgresVersion), func(t *testing.T) {
+			assert := assert.New(t)
+
+			dbClient, cleanup := mustInitTestDBWithClient(
+				&InitTestDBOptions{
+					postgresVersion,
+					&connOptions,
+				},
+				assert,
+			)
+			defer cleanup()
+
+			// Setup test data
+			tableName := "foo"
+
+			pkeyIndexName := fmt.Sprintf(`%s_pkey`, tableName)
+			createPkeyStatement := fmt.Sprintf(`CREATE UNIQUE INDEX %s ON public.%s (a)`, pkeyIndexName, tableName)
+
+			index1Name := fmt.Sprintf(`%s_idx_uni_b_c`, tableName)
+			createIndex1Statement := fmt.Sprintf(`CREATE UNIQUE INDEX %s ON public.%s (b, c)`, index1Name, tableName)
+
+			index2Name := fmt.Sprintf(`%s_idx_d`, tableName)
+			createIndex2Statement := fmt.Sprintf(`CREATE INDEX %s ON public.%s (d)`, index2Name, tableName)
+
+			// Create test table + indices in DB
+			{
+				createTableStatement := fmt.Sprintf(`CREATE TABLE %s (
+				a VARCHAR(255) PRIMARY KEY,
+				b INT NOT NULL,
+				c CHAR(36) NOT NULL,
+				D MONEY
+				)`, tableName)
+				for _, stmnt := range []string{createTableStatement, createIndex1Statement, createIndex2Statement} {
+					_, err := dbClient.Query(stmnt)
+					assert.NoError(err, "expected statement to execute succesfully", stmnt)
+				}
+			}
+
+			// Validate SHOW INDEXES
+			showIndexesQuery := fmt.Sprintf("SHOW INDEXES FROM %s", tableName)
+			showIndexesResult, err := dbClient.Query(showIndexesQuery)
+			assert.NoError(err, "expected to show indexes succesfully", showIndexesQuery)
+
+			assert.Len(showIndexesResult.Rows, 3, "show have 2 created indexes, 1 pkey", showIndexesResult)
+
+			expectedResults := []struct{ indexname, indexdef string }{
+				{
+					indexname: index2Name,
+					indexdef:  createIndex2Statement,
+				},
+				{
+					indexname: index1Name,
+					indexdef:  createIndex1Statement,
+				},
+				{
+					indexname: pkeyIndexName,
+					indexdef:  createPkeyStatement,
+				},
+			}
+
+			for idx, expectedResult := range expectedResults {
+				actualResult := showIndexesResult.Rows[idx]
+
+				assert.Equal(
+					expectedResult.indexname,
+					actualResult["indexname"].ToString(),
+					"index names should match",
+					expectedResult,
+					actualResult,
+				)
+				assert.Equal(
+					expectedResult.indexdef,
+					strings.ReplaceAll(actualResult["indexdef"].ToString(), "USING btree ", ""),
+					"index definitions should match",
+					expectedResult,
+					actualResult,
+				)
+			}
+		})
+	}
+}
+
+func TestDBShowIndexesMySQL(t *testing.T) {
+	connOptions := db.DBConnOptions{
+		Flavor:       db.MySQL,
+		Host:         "localhost",
+		DatabaseName: "test",
+		User:         "user",
+		Password:     "password",
+		Port:         3306,
+	}
+
+	for _, mySQLVersion := range TESTED_MYSQL_VERSIONS {
+		t.Run(fmt.Sprintf("MySQL %s - SHOW INDEXES", mySQLVersion), func(t *testing.T) {
+			assert := assert.New(t)
+
+			dbClient, cleanup := mustInitTestDBWithClient(
+				&InitTestDBOptions{mySQLVersion, &connOptions},
+				assert,
+			)
+			defer cleanup()
+
+			// Setup test data
+			tableName := "foo"
+
+			index1Name := fmt.Sprintf(`%s_idx_uni_b_c`, tableName)
+			createIndex1Statement := fmt.Sprintf(`CREATE UNIQUE INDEX %s ON %s (b, c)`, index1Name, tableName)
+
+			index2Name := fmt.Sprintf(`%s_idx_d`, tableName)
+			createIndex2Statement := fmt.Sprintf(`CREATE INDEX %s ON %s (d)`, index2Name, tableName)
+
+			// Create test data in the DB
+			{
+				createTableStatement := fmt.Sprintf(`CREATE TABLE %s (
+				a VARCHAR(255) PRIMARY KEY,
+				b INT NOT NULL,
+				c CHAR(36) NOT NULL,
+				D INT
+				)`, tableName)
+				for _, stmnt := range []string{createTableStatement, createIndex1Statement, createIndex2Statement} {
+					_, err := dbClient.Query(stmnt)
+					assert.NoError(err, "expected statement to execute succesfully", stmnt)
+				}
+			}
+
+			showTablesResult, err := dbClient.Query(
+				fmt.Sprintf("SHOW INDEXES FROM %s", tableName),
+			)
+			assert.NoError(err, "expected SHOW INDEXES to succeed")
+
+			assert.Equal(
+				[]string{"Table", "Non_unique", "Key_name", "Seq_in_index", "Column_name", "Collation", "Cardinality", "Sub_part", "Packed", "Null", "Index_type", "Comment", "Index_comment", "Visible", "Expression"},
+				showTablesResult.Columns,
+				"Should have all standards SHOW INDEXES columns",
+			)
+			assert.Len(showTablesResult.Rows, 4)
+		})
+	}
+}

@@ -19,9 +19,12 @@ func (db *DBClient) transformStatement(statement string) (
 	transformedStatement *StatementWithParams,
 	err error,
 ) {
-	tableName, isDescribe := statementIsDescribe(statement)
-	if isDescribe {
+	if tableName, isDescribe := statementIsDescribe(statement); isDescribe {
 		return db.buildDescribeQuery(tableName, statement)
+	}
+
+	if tableName, isShowIndexes := statementIsShowIndexes(statement); isShowIndexes {
+		return db.buildShowIndexesQuery(tableName, statement)
 	}
 
 	if statementIsShowTables(statement) {
@@ -53,6 +56,22 @@ func statementIsShowTables(statement string) bool {
 	return normalizedStatement == "SHOW TABLES"
 }
 
+var showIndexesRegExp = regexp.MustCompile(`(?i)^SHOW INDEXES FROM "?(\w+)"?;?$`)
+
+func statementIsShowIndexes(statement string) (tableName string, isShowIndexes bool) {
+	matches := showIndexesRegExp.FindStringSubmatch(strings.TrimSpace(statement))
+	if len(matches) != 2 {
+		return "", false
+	}
+
+	tableName = matches[1]
+	return tableName, true
+}
+
+func commandNotSupportedError(command string, flavor DBFlavor) error {
+	return fmt.Errorf("%s not supported for %s", command, flavor)
+}
+
 func (db *DBClient) buildShowTablesQuery(originalStatement string) (showTablesQuery *StatementWithParams, err error) {
 	switch db.connManager.GetFlavor() {
 	case PostgreSQL:
@@ -65,7 +84,29 @@ func (db *DBClient) buildShowTablesQuery(originalStatement string) (showTablesQu
 		}
 	default:
 		{
-			return nil, fmt.Errorf("SHOW TABLES not supported for %s", db.connManager.GetFlavor())
+			return nil, commandNotSupportedError("SHOW TABLES", db.connManager.GetFlavor())
+		}
+	}
+}
+
+func (db *DBClient) buildShowIndexesQuery(tableName string, originalStatement string) (showIndexesQuery *StatementWithParams, err error) {
+	switch db.connManager.GetFlavor() {
+	case MySQL:
+		{
+			return &StatementWithParams{originalStatement, nil}, nil
+		}
+	case PostgreSQL:
+		{
+			err := db.assertPostgresTableExists(tableName)
+			if err != nil {
+				return nil, err
+			}
+
+			return &StatementWithParams{postgresShowIndexesQuery, []interface{}{tableName}}, nil
+		}
+	default:
+		{
+			return nil, commandNotSupportedError("SHOW INDEXES", db.connManager.GetFlavor())
 		}
 	}
 }
@@ -78,18 +119,16 @@ func (db *DBClient) buildDescribeQuery(tableName string, originalStatement strin
 		}
 	case PostgreSQL:
 		{
-			tableExists, err := db.assertPostgresTableExists(tableName)
+			err := db.assertPostgresTableExists(tableName)
 			if err != nil {
 				return nil, err
 			}
-			if !tableExists {
-				return nil, fmt.Errorf("Table %s does not exist", tableName)
-			}
+
 			return &StatementWithParams{postgresDescribeQuery, []interface{}{tableName}}, nil
 		}
 	default:
 		{
-			return nil, fmt.Errorf("DESCRIBE not supported for %s", db.connManager.GetFlavor())
+			return nil, commandNotSupportedError("DESCRIBE", db.connManager.GetFlavor())
 		}
 	}
 }
@@ -102,24 +141,29 @@ const postgresTableExistQuery string = `
        AND    table_name = $1
    );`
 
-func (db *DBClient) assertPostgresTableExists(tableName string) (exists bool, err error) {
+func (db *DBClient) assertPostgresTableExists(tableName string) (err error) {
 	conn, err := db.getConnection()
 	if err != nil {
-		return false, errors.Join(
+		return errors.Join(
 			errors.New("Failed to get connection"),
 			err,
 		)
 	}
 
+	var exists bool
 	err = conn.GetContext(db.ctx, &exists, postgresTableExistQuery, tableName)
 	if err != nil && err != sql.ErrNoRows {
-		return false, errors.Join(
+		return errors.Join(
 			errors.New("Unable to validate that the table exists"),
 			err,
 		)
 	}
 
-	return exists, nil
+	if !exists {
+		return fmt.Errorf("Table %s does not exist", tableName)
+	}
+
+	return nil
 }
 
 const postgresShowTablesQuery string = `
@@ -127,6 +171,13 @@ SELECT table_name
 FROM information_schema.tables
 WHERE table_schema = current_schema()
 ORDER BY table_name ASC
+`
+
+const postgresShowIndexesQuery string = `
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = $1
+ORDER BY indexname ASC
 `
 
 const postgresDescribeQuery string = `

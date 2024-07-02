@@ -33,7 +33,7 @@ func TestDBMySQLConnOptions(t *testing.T) {
 			)
 			assert.NoError(err)
 
-			defer createTestDBCleanup(ctx, container)
+			defer testDBCleanup(ctx, container)
 
 			dbClient, err := db.CreateDBClient(&connOptions)
 			assert.NoError(err)
@@ -99,7 +99,7 @@ func TestDBMySQLDescribe(t *testing.T) {
 			container, err := initMySQLTestDB(&InitTestDBOptions{mySQLVersion, &connOptions}, ctx)
 			assert.NoError(err)
 
-			defer createTestDBCleanup(ctx, container)
+			defer testDBCleanup(ctx, container)
 
 			dbClient, err := db.CreateDBClient(&connOptions)
 			assert.NoError(err)
