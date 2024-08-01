@@ -76,13 +76,20 @@ func getTextLineCount(textView *tview.TextView, maxWidth int) int {
 		_, _, maxWidth, _ = textView.GetInnerRect()
 	}
 
+	currentText := textView.GetText(true)
+
+	// Get newline count
+	newlineCount := len(strings.Split(currentText, "\n")) - 1
+
 	// Get string width, in the same units as tview uses
 	totalStringCharsWidth := float64(
-		uniseg.StringWidth(textView.GetText(true)),
+		uniseg.StringWidth(currentText),
 	)
 
-	lines := math.Ceil(totalStringCharsWidth / float64(maxWidth))
-	return int(lines)
+	// counting the raw characters will account for implicit line breaks, overflowing the available space
+	implicitLines := math.Ceil(totalStringCharsWidth / float64(maxWidth))
+
+	return int(implicitLines) + newlineCount
 }
 
 func (app *App) commitQuery(query string) {
@@ -146,7 +153,6 @@ func (app *App) createQueryViewWithActions(
 	queryError error,
 ) (queryView *tview.Grid, fixedHeight int) {
 	queryView = NewGrid().
-		SetRows(3).
 		SetGap(0, 2)
 
 	_, _, containerWidth, _ := app.resultContainer.GetInnerRect()
@@ -201,6 +207,8 @@ func (app *App) createQueryViewWithActions(
 		)
 	}
 
+	// Our single row in this grid must be as tall as the grid itself
+	queryView.SetRows(gridHeight)
 	queryView.SetColumns(columns...)
 	return queryView, gridHeight
 }
