@@ -1,7 +1,6 @@
 package db_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -58,16 +57,11 @@ func TestDBDataDisplay(t *testing.T) {
 
 		// Check display of all datatypes
 		for _, dbVersion := range testSuite.Versions {
-			ctx := context.Background()
-			initTestDBOptions := InitTestDBOptions{dbVersion, &testSuite.ConnOptions}
-
-			container, err := initTestDB(&initTestDBOptions, ctx)
-			assert.NoError(t, err)
-
-			defer testDBCleanup(ctx, container)
-
-			dbClient, err := db.CreateDBClient(&testSuite.ConnOptions)
-			assert.NoError(t, err)
+			dbClient, cleanup := mustInitTestDBWithClient(
+				&InitTestDBOptions{dbVersion, &testSuite.ConnOptions},
+				assert.New(t),
+			)
+			defer cleanup()
 
 			for idx, tt := range testSuite.Cases {
 				t.Run(fmt.Sprintf("%s %s - %s display", testSuite.ConnOptions.Flavor, dbVersion, tt.Datatype), func(t *testing.T) {

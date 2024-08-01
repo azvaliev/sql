@@ -1,7 +1,6 @@
 package db_test
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"testing"
@@ -26,17 +25,11 @@ func TestDBMySQLConnOptions(t *testing.T) {
 			mySQLVersion := mySQLVersion
 			assert := assert.New(t)
 
-			ctx := context.Background()
-			container, err := initMySQLTestDB(
+			dbClient, cleanup := mustInitTestDBWithClient(
 				&InitTestDBOptions{mySQLVersion, &connOptions},
-				ctx,
+				assert,
 			)
-			assert.NoError(err)
-
-			defer testDBCleanup(ctx, container)
-
-			dbClient, err := db.CreateDBClient(&connOptions)
-			assert.NoError(err)
+			defer cleanup()
 
 			// Using version function
 			{
@@ -95,18 +88,15 @@ func TestDBMySQLDescribe(t *testing.T) {
 			mySQLVersion := mySQLVersion
 			assert := assert.New(t)
 
-			ctx := context.Background()
-			container, err := initMySQLTestDB(&InitTestDBOptions{mySQLVersion, &connOptions}, ctx)
-			assert.NoError(err)
-
-			defer testDBCleanup(ctx, container)
-
-			dbClient, err := db.CreateDBClient(&connOptions)
-			assert.NoError(err)
+			dbClient, cleanup := mustInitTestDBWithClient(
+				&InitTestDBOptions{mySQLVersion, &connOptions},
+				assert,
+			)
+			defer cleanup()
 
 			// Create a table we can describe later
 			const tableName string = "test"
-			_, err = dbClient.Query(fmt.Sprintf(`
+			_, err := dbClient.Query(fmt.Sprintf(`
 		CREATE TABLE %s(
 			id int NOT NULL PRIMARY KEY auto_increment,
 			external_id CHAR(32),

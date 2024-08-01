@@ -1,7 +1,6 @@
 package db_test
 
 import (
-	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -51,23 +50,18 @@ func TestDBShowTables(t *testing.T) {
 				dbVersion := dbVersion
 				assert := assert.New(t)
 
-				/// Initialize test DB / dependencies
-				ctx := context.Background()
-				testDbOptions := InitTestDBOptions{dbVersion, &testSuite.ConnOptions}
-				container, err := initTestDB(&testDbOptions, ctx)
-				assert.NoError(err)
-
-				defer testDBCleanup(ctx, container)
-
-				dbClient, err := db.CreateDBClient(&testSuite.ConnOptions)
-				assert.NoError(err)
+				dbClient, cleanup := mustInitTestDBWithClient(
+					&InitTestDBOptions{dbVersion, &testSuite.ConnOptions},
+					assert,
+				)
+				defer cleanup()
 
 				/// Create a few test tables
 
 				expectedTableNames := []string{"table_one", "table_two", "table_three"}
 				for _, tableName := range expectedTableNames {
 					query := fmt.Sprintf("CREATE TABLE %s (id int)", tableName)
-					_, err = dbClient.Query(query)
+					_, err := dbClient.Query(query)
 					assert.NoError(err, "expected to create table succesfully", query)
 				}
 

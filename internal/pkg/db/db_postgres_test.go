@@ -1,7 +1,6 @@
 package db_test
 
 import (
-	"context"
 	"fmt"
 	"regexp"
 	"testing"
@@ -25,17 +24,11 @@ func TestDBPostgresConnOptions(t *testing.T) {
 			postgresVersion := postgresVersion
 			assert := assert.New(t)
 
-			ctx := context.Background()
-			container, err := initPostgresTestDB(
+			dbClient, cleanup := mustInitTestDBWithClient(
 				&InitTestDBOptions{postgresVersion, &connOptions},
-				ctx,
+				assert,
 			)
-			assert.NoError(err)
-
-			defer testDBCleanup(ctx, container)
-
-			dbClient, err := db.CreateDBClient(&connOptions)
-			assert.NoError(err)
+			defer cleanup()
 
 			// Using version function
 			{
@@ -82,19 +75,15 @@ func TestDBPostgresDescribe(t *testing.T) {
 			postgresVersion := postgresVersion
 			assert := assert.New(t)
 
-			ctx := context.Background()
-			testDbOptions := InitTestDBOptions{postgresVersion, &connOptions}
-			container, err := initPostgresTestDB(&testDbOptions, ctx)
-			assert.NoError(err)
-
-			defer testDBCleanup(ctx, container)
-
-			dbClient, err := db.CreateDBClient(&connOptions)
-			assert.NoError(err)
+			dbClient, cleanup := mustInitTestDBWithClient(
+				&InitTestDBOptions{postgresVersion, &connOptions},
+				assert,
+			)
+			defer cleanup()
 
 			// Create a table we can describe later
 			const tableName string = "test"
-			_, err = dbClient.Query(fmt.Sprintf(`
+			_, err := dbClient.Query(fmt.Sprintf(`
 		CREATE TABLE %s(
 			id SERIAL NOT NULL PRIMARY KEY,
 			external_id CHAR(32),
