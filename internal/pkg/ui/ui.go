@@ -283,7 +283,7 @@ func (app *App) createNoResultView() (view *tview.TextView, lines int) {
 	return noResultsTextItem, linesWithSpacing
 }
 
-func createResultCell(value string) *tview.TableCell {
+func (app *App) createResultCell(value string) *tview.TableCell {
 	cell := tview.
 		NewTableCell(value).
 		SetAttributes(tcell.AttrDim)
@@ -292,6 +292,9 @@ func createResultCell(value string) *tview.TableCell {
 		SetClickedFunc(func() bool {
 			mustInitClipboard()
 			clipboard.Write(clipboard.FmtText, []byte(value))
+
+			// Refocus back on the textarea so that copied content could be used in the next query
+			app.tviewApp.SetFocus(app.queryTextArea)
 
 			return true
 		})
@@ -319,7 +322,7 @@ func (app *App) createResultView(result *db.QueryResult) (view *tview.Table, lin
 			resultTable.SetCell(
 				rowIdx,
 				columnIdx,
-				createResultCell(cellValue.ToString()),
+				app.createResultCell(cellValue.ToString()),
 			)
 		}
 	}
