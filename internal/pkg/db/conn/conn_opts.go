@@ -1,4 +1,4 @@
-package db
+package conn
 
 import (
 	"errors"
@@ -25,13 +25,14 @@ func (flavor *DBFlavor) isValid() bool {
 	return true
 }
 
-type ConnManager interface {
+type DSNManager interface {
 	GetDSN() (string, error)
 	IsSafeMode() bool
 	GetFlavor() DBFlavor
+	SetDatabase(databaseName string)
 }
 
-type DBConnOptions struct {
+type DSNOptions struct {
 	Flavor       DBFlavor
 	Host         string
 	DatabaseName string
@@ -43,7 +44,7 @@ type DBConnOptions struct {
 	AdditionalOptions map[string]string
 }
 
-func (connOptions *DBConnOptions) Validate() error {
+func (connOptions *DSNOptions) Validate() error {
 	if !connOptions.Flavor.isValid() {
 		return errors.New(fmt.Sprintf("Database type (ex: mysql, postgres) must be specified"))
 	}
@@ -51,15 +52,19 @@ func (connOptions *DBConnOptions) Validate() error {
 	return nil
 }
 
-func (connOptions *DBConnOptions) IsSafeMode() bool {
+func (connOptions *DSNOptions) IsSafeMode() bool {
 	return connOptions.SafeMode
 }
 
-func (connOptions *DBConnOptions) GetFlavor() DBFlavor {
+func (connOptions *DSNOptions) GetFlavor() DBFlavor {
 	return connOptions.Flavor
 }
 
-func (connOptions *DBConnOptions) GetDSN() (string, error) {
+func (connOptions *DSNOptions) SetDatabase(databaseName string) {
+	connOptions.DatabaseName = databaseName
+}
+
+func (connOptions *DSNOptions) GetDSN() (string, error) {
 	switch connOptions.Flavor {
 	case MySQL:
 		{
@@ -117,7 +122,7 @@ func (connOptions *DBConnOptions) GetDSN() (string, error) {
 	}
 }
 
-func (connOptions *DBConnOptions) additionalOptionsToQueryParts() *[]string {
+func (connOptions *DSNOptions) additionalOptionsToQueryParts() *[]string {
 	if connOptions.AdditionalOptions == nil || len(connOptions.AdditionalOptions) == 0 {
 		return nil
 	}
@@ -150,7 +155,7 @@ func (connOptions *DBConnOptions) additionalOptionsToQueryParts() *[]string {
 	return &queryParts
 }
 
-func (connOptions *DBConnOptions) additionalOptionsToString() string {
+func (connOptions *DSNOptions) additionalOptionsToString() string {
 	queryParts := connOptions.additionalOptionsToQueryParts()
 	if queryParts == nil {
 		return ""
@@ -159,7 +164,7 @@ func (connOptions *DBConnOptions) additionalOptionsToString() string {
 	return "?" + strings.Join(*queryParts, "&")
 }
 
-func (connOptions *DBConnOptions) getNetwork() string {
+func (connOptions *DSNOptions) getNetwork() string {
 	if connOptions.Host == "" {
 		return ""
 	}

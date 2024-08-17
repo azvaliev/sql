@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 	"github.com/testcontainers/testcontainers-go"
@@ -18,7 +19,7 @@ import (
 
 type InitTestDBOptions struct {
 	Version     string
-	ConnOptions *db.DBConnOptions
+	ConnOptions *conn.DSNOptions
 }
 
 type TestDBContainer interface {
@@ -46,7 +47,8 @@ func mustInitTestDBWithClient(
 	cleanup = func() {
 		testDBCleanup(ctx, container)
 	}
-	dbClient, err = db.CreateDBClient(opts.ConnOptions)
+	connManager, err := conn.CreateConnectionManager(opts.ConnOptions, context.Background())
+	dbClient, err = db.CreateDBClient(connManager)
 	assert.NoError(err, "Failed to initialize DB client", opts.ConnOptions)
 
 	return dbClient, cleanup
@@ -60,11 +62,11 @@ func initTestDB(opts *InitTestDBOptions, ctx context.Context) (TestDBContainer, 
 	}
 
 	switch opts.ConnOptions.Flavor {
-	case db.MySQL:
+	case conn.MySQL:
 		{
 			return initMySQLTestDB(opts, ctx)
 		}
-	case db.PostgreSQL:
+	case conn.PostgreSQL:
 		{
 			return initPostgresTestDB(opts, ctx)
 		}
@@ -107,8 +109,8 @@ func initMySQLTestDB(opts *InitTestDBOptions, ctx context.Context) (*mysql.MySQL
 			WithStartupTimeout(60*time.Second),
 		wait.ForExposedPort(),
 		wait.
-			ForSQL(port, string(db.MySQL), func(host string, port nat.Port) string {
-				var newConnOptions *db.DBConnOptions
+			ForSQL(port, string(conn.MySQL), func(host string, port nat.Port) string {
+				var newConnOptions *conn.DSNOptions
 				newConnOptions = &*connOptions
 				newConnOptions.Port = uint(port.Int())
 				newConnOptions.Host = host

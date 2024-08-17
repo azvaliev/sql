@@ -6,20 +6,20 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 	"github.com/stretchr/testify/assert"
 )
 
 // Test transformed DB queries
 
 var showTablesTestSuite = []struct {
-	ConnOptions          db.DBConnOptions
+	ConnOptions          conn.DSNOptions
 	ShowTablesColumnName string
 	DBVersions           []string
 }{
 	{
-		db.DBConnOptions{
-			Flavor:       db.PostgreSQL,
+		conn.DSNOptions{
+			Flavor:       conn.PostgreSQL,
 			Host:         "localhost",
 			DatabaseName: "test",
 			User:         "user",
@@ -30,8 +30,8 @@ var showTablesTestSuite = []struct {
 		TESTED_POSTGRES_VERSIONS[:],
 	},
 	{
-		db.DBConnOptions{
-			Flavor:       db.MySQL,
+		conn.DSNOptions{
+			Flavor:       conn.MySQL,
 			Host:         "localhost",
 			DatabaseName: "test",
 			User:         "user",
@@ -94,8 +94,8 @@ func TestDBShowTables(t *testing.T) {
 }
 
 func TestDBShowIndexesPostgres(t *testing.T) {
-	connOptions := db.DBConnOptions{
-		Flavor:       db.PostgreSQL,
+	connOptions := conn.DSNOptions{
+		Flavor:       conn.PostgreSQL,
 		Host:         "localhost",
 		DatabaseName: "test",
 		User:         "user",
@@ -187,8 +187,8 @@ func TestDBShowIndexesPostgres(t *testing.T) {
 }
 
 func TestDBShowIndexesMySQL(t *testing.T) {
-	connOptions := db.DBConnOptions{
-		Flavor:       db.MySQL,
+	connOptions := conn.DSNOptions{
+		Flavor:       conn.MySQL,
 		Host:         "localhost",
 		DatabaseName: "test",
 		User:         "user",

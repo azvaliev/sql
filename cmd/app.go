@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 )
 
 const (
@@ -21,17 +21,17 @@ const (
 	additionalOptionsUsage = "Provide additional options as flags. Example: -additional-options=foo=bar,bar=baz"
 )
 
-func ParseArgs() db.DBConnOptions {
-	parsedArgs := db.DBConnOptions{}
+func ParseArgs() conn.DSNOptions {
+	parsedArgs := conn.DSNOptions{}
 
 	// Register all the flags
 	{
 		setPostgreSQLDB := func(string) error {
-			parsedArgs.Flavor = db.PostgreSQL
+			parsedArgs.Flavor = conn.PostgreSQL
 			return nil
 		}
 		setMySQLDB := func(string) error {
-			parsedArgs.Flavor = db.MySQL
+			parsedArgs.Flavor = conn.MySQL
 			return nil
 		}
 

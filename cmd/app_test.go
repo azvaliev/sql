@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/azvaliev/sql/cmd"
-	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -33,34 +33,34 @@ func TestParseArgsNoFlavor(t *testing.T) {
 var testCases = []struct {
 	Name               string
 	Args               []string
-	ExpectedParsedArgs db.DBConnOptions
+	ExpectedParsedArgs conn.DSNOptions
 }{
 	{
 		Name: "MySQL Flavor w/ defaults",
 		Args: []string{"-mysql"},
-		ExpectedParsedArgs: db.DBConnOptions{
-			Flavor: db.MySQL,
+		ExpectedParsedArgs: conn.DSNOptions{
+			Flavor: conn.MySQL,
 		},
 	},
 	{
 		Name: "-postgres with defaults",
 		Args: []string{"-postgres"},
-		ExpectedParsedArgs: db.DBConnOptions{
-			Flavor: db.PostgreSQL,
+		ExpectedParsedArgs: conn.DSNOptions{
+			Flavor: conn.PostgreSQL,
 		},
 	},
 	{
 		Name: "-psql with defaults",
 		Args: []string{"-psql"},
-		ExpectedParsedArgs: db.DBConnOptions{
-			Flavor: db.PostgreSQL,
+		ExpectedParsedArgs: conn.DSNOptions{
+			Flavor: conn.PostgreSQL,
 		},
 	},
 	{
 		Name: "MySQL with filled out options",
 		Args: []string{"-mysql", "-h", "localhost", "-P", "3306", "-u", "user", "-p=password", "--safe"},
-		ExpectedParsedArgs: db.DBConnOptions{
-			Flavor:   db.MySQL,
+		ExpectedParsedArgs: conn.DSNOptions{
+			Flavor:   conn.MySQL,
 			Host:     "localhost",
 			Port:     3306,
 			User:     "user",
@@ -71,8 +71,8 @@ var testCases = []struct {
 	{
 		Name: "PostgreSQL with filled out options",
 		Args: []string{"-psql", "--host=remote.example.com", "--port=5432", "--user=postgres"},
-		ExpectedParsedArgs: db.DBConnOptions{
-			Flavor: db.PostgreSQL,
+		ExpectedParsedArgs: conn.DSNOptions{
+			Flavor: conn.PostgreSQL,
 			Host:   "remote.example.com",
 			Port:   5432,
 			User:   "postgres",
@@ -81,8 +81,8 @@ var testCases = []struct {
 	{
 		Name: "MySQL with additional options",
 		Args: []string{"-mysql", "--additional-options=hello=world,bar=baz"},
-		ExpectedParsedArgs: db.DBConnOptions{
-			Flavor: db.MySQL,
+		ExpectedParsedArgs: conn.DSNOptions{
+			Flavor: conn.MySQL,
 			AdditionalOptions: map[string]string{
 				"hello": "world",
 				"bar":   "baz",
@@ -92,8 +92,8 @@ var testCases = []struct {
 	{
 		Name: "PostgreSQL with additional options",
 		Args: []string{"-postgres", "--additional-options=testing=foo,test2=bar"},
-		ExpectedParsedArgs: db.DBConnOptions{
-			Flavor: db.PostgreSQL,
+		ExpectedParsedArgs: conn.DSNOptions{
+			Flavor: conn.PostgreSQL,
 			AdditionalOptions: map[string]string{
 				"testing": "foo",
 				"test2":   "bar",

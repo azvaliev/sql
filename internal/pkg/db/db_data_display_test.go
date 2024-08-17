@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -20,15 +20,15 @@ type dataDisplayTypeTestCase struct {
 
 type dataDisplayTestOptions struct {
 	Cases       []dataDisplayTypeTestCase
-	ConnOptions db.DBConnOptions
+	ConnOptions conn.DSNOptions
 	Versions    []string
 }
 
 var dataDisplayTestSuite = []dataDisplayTestOptions{
 	{
 		Cases: mysqlDataDisplayTestCases,
-		ConnOptions: db.DBConnOptions{
-			Flavor:       db.MySQL,
+		ConnOptions: conn.DSNOptions{
+			Flavor:       conn.MySQL,
 			Host:         "localhost",
 			DatabaseName: "test",
 			User:         "user",
@@ -40,8 +40,8 @@ var dataDisplayTestSuite = []dataDisplayTestOptions{
 	},
 	{
 		Cases: postgresDataDisplayTestCases,
-		ConnOptions: db.DBConnOptions{
-			Flavor:       db.PostgreSQL,
+		ConnOptions: conn.DSNOptions{
+			Flavor:       conn.PostgreSQL,
 			Host:         "localhost",
 			DatabaseName: "test",
 			User:         "user",

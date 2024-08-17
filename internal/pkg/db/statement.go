@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 )
 
 type StatementWithParams struct {
@@ -68,17 +70,17 @@ func statementIsShowIndexes(statement string) (tableName string, isShowIndexes b
 	return tableName, true
 }
 
-func commandNotSupportedError(command string, flavor DBFlavor) error {
+func commandNotSupportedError(command string, flavor conn.DBFlavor) error {
 	return fmt.Errorf("%s not supported for %s", command, flavor)
 }
 
 func (db *DBClient) buildShowTablesQuery(originalStatement string) (showTablesQuery *StatementWithParams, err error) {
 	switch db.connManager.GetFlavor() {
-	case PostgreSQL:
+	case conn.PostgreSQL:
 		{
 			return &StatementWithParams{postgresShowTablesQuery, nil}, nil
 		}
-	case MySQL:
+	case conn.MySQL:
 		{
 			return &StatementWithParams{originalStatement, nil}, nil
 		}
@@ -91,11 +93,11 @@ func (db *DBClient) buildShowTablesQuery(originalStatement string) (showTablesQu
 
 func (db *DBClient) buildShowIndexesQuery(tableName string, originalStatement string) (showIndexesQuery *StatementWithParams, err error) {
 	switch db.connManager.GetFlavor() {
-	case MySQL:
+	case conn.MySQL:
 		{
 			return &StatementWithParams{originalStatement, nil}, nil
 		}
-	case PostgreSQL:
+	case conn.PostgreSQL:
 		{
 			err := db.assertPostgresTableExists(tableName)
 			if err != nil {
@@ -113,11 +115,11 @@ func (db *DBClient) buildShowIndexesQuery(tableName string, originalStatement st
 
 func (db *DBClient) buildDescribeQuery(tableName string, originalStatement string) (describeQuery *StatementWithParams, err error) {
 	switch db.connManager.GetFlavor() {
-	case MySQL:
+	case conn.MySQL:
 		{
 			return &StatementWithParams{originalStatement, nil}, nil
 		}
-	case PostgreSQL:
+	case conn.PostgreSQL:
 		{
 			err := db.assertPostgresTableExists(tableName)
 			if err != nil {
@@ -142,7 +144,7 @@ const postgresTableExistQuery string = `
    );`
 
 func (db *DBClient) assertPostgresTableExists(tableName string) (err error) {
-	conn, err := db.getConnection()
+	conn, err := db.connManager.GetConnection()
 	if err != nil {
 		return errors.Join(
 			errors.New("Failed to get connection"),

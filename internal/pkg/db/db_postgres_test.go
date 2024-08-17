@@ -5,13 +5,13 @@ import (
 	"regexp"
 	"testing"
 
-	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDBPostgresConnOptions(t *testing.T) {
-	connOptions := db.DBConnOptions{
-		Flavor:       db.PostgreSQL,
+	connOptions := conn.DSNOptions{
+		Flavor:       conn.PostgreSQL,
 		Host:         "localhost",
 		DatabaseName: "test",
 		User:         "user",
@@ -61,8 +61,8 @@ func TestDBPostgresConnOptions(t *testing.T) {
 }
 
 func TestDBPostgresDescribe(t *testing.T) {
-	connOptions := db.DBConnOptions{
-		Flavor:       db.PostgreSQL,
+	connOptions := conn.DSNOptions{
+		Flavor:       conn.PostgreSQL,
 		Host:         "localhost",
 		DatabaseName: "test",
 		User:         "user",

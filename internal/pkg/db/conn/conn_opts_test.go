@@ -1,24 +1,24 @@
-package db_test
+package conn_test
 
 import (
 	"strings"
 	"testing"
 
-	"github.com/azvaliev/sql/internal/pkg/db"
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestDBConnOptionsMySQL(t *testing.T) {
 	var tests = []struct {
 		Name               string
-		ConnOptions        *db.DBConnOptions
+		ConnOptions        *conn.DSNOptions
 		ExpectedConnString string
 		ExpectedQuery      []string
 	}{
 		{
 			Name: "All Options",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:       db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:       conn.MySQL,
 				Host:         "localhost",
 				DatabaseName: "test",
 				User:         "root",
@@ -35,8 +35,8 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 		},
 		{
 			Name: "One Additional Option",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:       db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:       conn.MySQL,
 				Host:         "localhost",
 				DatabaseName: "test",
 				User:         "root",
@@ -51,15 +51,15 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 		},
 		{
 			Name: "No Options",
-			ConnOptions: &db.DBConnOptions{
-				Flavor: db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor: conn.MySQL,
 			},
 			ExpectedConnString: "/",
 		},
 		{
 			Name: "No Additional Options",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:       db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:       conn.MySQL,
 				Host:         "localhost",
 				DatabaseName: "bar",
 				User:         "john",
@@ -70,8 +70,8 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 		},
 		{
 			Name: "No Port Specified",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:       db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:       conn.MySQL,
 				Host:         "localhost",
 				DatabaseName: "test",
 				User:         "root",
@@ -81,8 +81,8 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 		},
 		{
 			Name: "No Host Specified",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:   db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:   conn.MySQL,
 				Port:     3306,
 				User:     "root",
 				Password: "password",
@@ -91,8 +91,8 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 		},
 		{
 			Name: "Infer Unix",
-			ConnOptions: &db.DBConnOptions{
-				Flavor: db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor: conn.MySQL,
 				Port:   3306,
 				User:   "root",
 				Host:   "/tmp/mysql.sock",
@@ -100,8 +100,8 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 			ExpectedConnString: "root@unix(/tmp/mysql.sock)/",
 		}, {
 			Name: "Infer Unix from Abstract Namespace",
-			ConnOptions: &db.DBConnOptions{
-				Flavor: db.MySQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor: conn.MySQL,
 				Port:   3306,
 				User:   "root",
 				Host:   "@/var/run/usbmuxd",
@@ -147,13 +147,13 @@ func TestDBConnOptionsMySQL(t *testing.T) {
 func TestDBConnOptionsPostgreSQL(t *testing.T) {
 	var tests = []struct {
 		Name                    string
-		ConnOptions             *db.DBConnOptions
+		ConnOptions             *conn.DSNOptions
 		ExpectedConnStringParts []string
 	}{
 		{
 			Name: "All Options",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:       db.PostgreSQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:       conn.PostgreSQL,
 				Host:         "localhost",
 				DatabaseName: "test",
 				User:         "root",
@@ -176,8 +176,8 @@ func TestDBConnOptionsPostgreSQL(t *testing.T) {
 		},
 		{
 			Name: "No Additional Options",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:       db.PostgreSQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:       conn.PostgreSQL,
 				Host:         "localhost",
 				DatabaseName: "test",
 				User:         "root",
@@ -194,8 +194,8 @@ func TestDBConnOptionsPostgreSQL(t *testing.T) {
 		},
 		{
 			Name: "Some Empty Options",
-			ConnOptions: &db.DBConnOptions{
-				Flavor:       db.PostgreSQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor:       conn.PostgreSQL,
 				Host:         "localhost",
 				DatabaseName: "test",
 				User:         "root",
@@ -209,8 +209,8 @@ func TestDBConnOptionsPostgreSQL(t *testing.T) {
 		},
 		{
 			Name: "No Options",
-			ConnOptions: &db.DBConnOptions{
-				Flavor: db.PostgreSQL,
+			ConnOptions: &conn.DSNOptions{
+				Flavor: conn.PostgreSQL,
 			},
 			ExpectedConnStringParts: []string{},
 		},
@@ -241,7 +241,7 @@ func TestDBConnOptionsPostgreSQL(t *testing.T) {
 func TestDBConnOptionsInvalidFlavor(t *testing.T) {
 	assert := assert.New(t)
 
-	connOptions := db.DBConnOptions{
+	connOptions := conn.DSNOptions{
 		Flavor:   "invalid",
 		Host:     "localhost",
 		User:     "root",

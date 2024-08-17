@@ -3,59 +3,26 @@ package db
 import (
 	"context"
 	"errors"
-	"time"
 
+	"github.com/azvaliev/sql/internal/pkg/db/conn"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/jmoiron/sqlx"
 )
 
 type DBClient struct {
 	ctx         context.Context
-	sqlDB       *sqlx.DB
-	_conn       *sqlx.Conn
-	connManager ConnManager
+	connManager *conn.ConnectionManager
 }
 
 // Instantiate a DBClient from a DSN
-func CreateDBClient(
-	dsnProducer ConnManager,
-) (*DBClient, error) {
-	dataSourceName, err := dsnProducer.GetDSN()
-	if err != nil {
-		return nil, errors.Join(
-			errors.New("Failed to create connection string"),
-			err,
-		)
+func CreateDBClient(connManager *conn.ConnectionManager) (*DBClient, error) {
+	if connManager == nil {
+		return nil, errors.New("Cannot instantiate DBClient with nil connection manager")
 	}
-
-	sqlDB, err := sqlx.Open(string(dsnProducer.GetFlavor()), dataSourceName)
-	if err != nil {
-		return nil, errors.Join(
-			errors.New("Failed to open database"),
-			err,
-		)
-	}
-
-	err = sqlDB.Ping()
-	if err != nil {
-		return nil, errors.Join(
-			errors.New("Failed to establish connection to database"),
-			err,
-		)
-	}
-
-	// Keep connections alive for 5 mins
-	sqlDB.SetConnMaxLifetime(time.Minute * 5)
-
-	// Only should ever have a single connection
-	sqlDB.SetMaxOpenConns(1)
-	sqlDB.SetMaxIdleConns(1)
 
 	db := DBClient{
 		ctx:         context.Background(),
-		sqlDB:       sqlDB,
-		connManager: dsnProducer,
+		connManager: connManager,
 	}
 
 	return &db, nil
@@ -63,17 +30,15 @@ func CreateDBClient(
 
 // Cleanup database resources
 // Call before this struct drops out of scope
-func (db *DBClient) Destroy() error {
-	// This only returns an error if the connection is already closed, safe to ignore
-	_ = db._conn.Close()
-
-	return db.sqlDB.Close()
+func (db *DBClient) Destroy() {
+	db.connManager.Destroy()
 }
 
 // Run a query and store the output in a displayable format
 // NOTE: results and error may both be nil if a query is succesful yet doesn't return any rows
 func (db *DBClient) Query(statement string) (results *QueryResult, err error) {
-	conn, err := db.getConnection()
+
+	conn, err := db.connManager.GetConnection()
 	if err != nil {
 		return nil, err
 	}
@@ -156,36 +121,4 @@ func (db *DBClient) Query(statement string) (results *QueryResult, err error) {
 		Rows:    mappedRows,
 		Columns: columns,
 	}, err
-}
-
-// We try to use a single connection, instantiated when DBClient is instantiated
-// This will either return that existing connection, or create a new one if that got dropped
-func (db *DBClient) getConnection() (*sqlx.Conn, error) {
-	if db._conn != nil {
-		// See if our existing connection is still alive
-		err := db._conn.PingContext(db.ctx)
-		if err == nil {
-			return db._conn, nil
-		}
-		db._conn.Close()
-	}
-
-	conn, err := db.sqlDB.Connx(db.ctx)
-
-	if err != nil {
-		return nil, errors.Join(
-			errors.New("Failed to get connection to database"),
-			err,
-		)
-	}
-
-	if db.connManager.IsSafeMode() {
-		_, err = conn.ExecContext(db.ctx, "SET SQL_SAFE_UPDATES = 1")
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	db._conn = conn
-	return db._conn, nil
 }
